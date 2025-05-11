@@ -44,6 +44,13 @@ from moro.modules.url_downloader import download_from_url_list
     help="Prefix for downloaded filenames (default: 'file')",
 )
 @click.option(
+    "-n",
+    "--numbered",
+    "auto_prefix",
+    is_flag=True,
+    help="Use automatic numbered prefixes (e.g. 01_, 001_)",
+)
+@click.option(
     "-v",
     "--verbose",
     is_flag=True,
@@ -54,6 +61,7 @@ def download(
     output_dir: str,
     timeout: float = 10.0,
     prefix: Optional[str] = None,
+    auto_prefix: bool = False,
     verbose: bool = False,
 ) -> None:
     """Download content from URLs in a text file."""
@@ -79,6 +87,7 @@ def download(
             output_dir,
             timeout=timeout,
             prefix=prefix,
+            auto_prefix=auto_prefix,
         )
         logger.info(f"Successfully downloaded {len(saved_files)} files to {output_dir}")
     except Exception as e:
