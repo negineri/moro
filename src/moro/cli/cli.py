@@ -7,6 +7,7 @@ import click
 
 from moro.cli._utils import AliasedGroup
 from moro.cli.example import example
+from moro.cli.url_downloader import download
 from moro.config.settings import ConfigRepo
 
 logger = getLogger(__name__)
@@ -21,3 +22,4 @@ def cli() -> None:
 
 
 cli.add_command(example)
+cli.add_command(download)
