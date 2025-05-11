@@ -2,10 +2,10 @@
 url_downloader CLI module (Click version).
 
 Provides a command-line interface for downloading content from a list of URLs.
+Supports saving to directory or ZIP archive.
 """
 
 import logging
-import os
 from typing import Optional
 
 import click
@@ -26,9 +26,9 @@ from moro.modules.url_downloader import download_from_url_list
     "-o",
     "--output",
     "output_dir",
-    type=click.Path(file_okay=False),
+    type=click.Path(),
     required=True,
-    help="Output directory for downloaded files",
+    help="Output directory for downloaded files or .zip file path for ZIP compression",
 )
 @click.option(
     "-t",
@@ -64,7 +64,11 @@ def download(
     auto_prefix: bool = False,
     verbose: bool = False,
 ) -> None:
-    """Download content from URLs in a text file."""
+    """
+    Download content from URLs in a text file.
+
+    If output_dir ends with .zip, files will be compressed into a ZIP archive.
+    """
     # Set logging level
     log_level = logging.DEBUG if verbose else logging.INFO
     logger = logging.getLogger(__name__)
@@ -77,9 +81,6 @@ def download(
             logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         )
         logger.addHandler(handler)
-
-    # Create output directory
-    os.makedirs(output_dir, exist_ok=True)
 
     try:
         saved_files = download_from_url_list(
