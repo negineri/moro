@@ -67,6 +67,8 @@ ignore = [
     # "D100",  # Missing docstring in public module
     # "D104",  # Missing docstring in public package
     "D107",  # Missing docstring in __init__
+    "RUF002", # 日本語コメントの際に邪魔
+    "RUF003", # 日本語コメントの際に邪魔
 ]
 
 [tool.ruff.lint.per-file-ignores]
