@@ -3,12 +3,17 @@
 必ず日本語で回答してください。
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Installation
+
+- `pip install git+ssh://git@github.com/negineri/moro.git` - Install from GitHub
+
 ## Commands
 
 ### Development Setup
 
 - `uv run moro` - Run the CLI tool directly without installation
 - `pre-commit install` - Install pre-commit hooks for code quality
+- `uv sync --group dev` - Install development dependencies
 
 ### Code Quality and Testing
 

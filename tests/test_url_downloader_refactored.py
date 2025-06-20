@@ -185,6 +185,14 @@ class TestProcessFilesToZip:
         with zipfile.ZipFile(zip_path, "r") as zf:
             assert len(zf.namelist()) == 0
 
+    def test_process_files_to_zip_error_handling(self, tmp_path: Path) -> None:
+        """ZIP作成時の例外処理をテスト."""
+        zip_path = tmp_path / "test.zip"
+        test_files = ["nonexistent_file.txt"]
+
+        with pytest.raises(OSError, match="Failed to create ZIP file"):
+            process_files_to_zip(test_files, str(zip_path))
+
     def test_process_files_to_zip_with_files(
         self, tmp_path: Path, create_test_files: "Callable[[int, str], list[str]]"
     ) -> None:
