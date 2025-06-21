@@ -90,7 +90,7 @@ class PixivDownloader:
         Returns:
             List of image URLs to download.
         """
-        urls = []
+        urls: list[str] = []
         artwork_type = artwork_detail["type"]
 
         if artwork_type == "illust":
@@ -163,7 +163,7 @@ class PixivDownloader:
         url: str,
         index: int = 0,
         total: int = 1,
-        auto_prefix: bool = False
+        auto_prefix: bool = False,
     ) -> str:
         """
         Create filename for downloaded artwork.
@@ -182,8 +182,8 @@ class PixivDownloader:
         ext = os.path.splitext(urlparse(url).path)[-1] or ".jpg"
 
         # Clean title for filename
-        title = re.sub(r'[<>:"/\\|?*]', '_', artwork_detail["title"])
-        author = re.sub(r'[<>:"/\\|?*]', '_', artwork_detail["user"]["name"])
+        title = re.sub(r'[<>:"/\\|?*]', "_", artwork_detail["title"])
+        author = re.sub(r'[<>:"/\\|?*]', "_", artwork_detail["user"]["name"])
         artwork_id = artwork_detail["id"]
 
         if auto_prefix and total > 1:
@@ -210,7 +210,7 @@ class PixivDownloader:
         metadata_path = os.path.join(dest_dir, f"{artwork_id}_metadata.json")
 
         # Extract relevant metadata
-        metadata = {
+        metadata: dict[str, Any] = {
             "id": artwork_detail["id"],
             "title": artwork_detail["title"],
             "author": artwork_detail["user"]["name"],
@@ -292,9 +292,10 @@ def download_pixiv_artwork(
     # Get artwork details
     artwork_detail = downloader.get_artwork_detail(artwork_id)
     image_urls = downloader.get_artwork_urls(artwork_detail)
+    logger.info(f"Found {len(image_urls)} images for artwork {artwork_id}")
 
     # Check if output should be ZIP
-    is_zip = dest_dir.lower().endswith('.zip')
+    is_zip = dest_dir.lower().endswith(".zip")
     temp_dir = None
 
     try:
@@ -304,7 +305,7 @@ def download_pixiv_artwork(
         else:
             download_dest = dest_dir
 
-        downloaded_files = []
+        downloaded_files: list[str] = []
 
         # Download images
         for i, image_url in enumerate(image_urls):
@@ -326,7 +327,7 @@ def download_pixiv_artwork(
             logger.info(f"Creating ZIP archive: {dest_dir}")
             os.makedirs(os.path.dirname(os.path.abspath(dest_dir)), exist_ok=True)
 
-            with zipfile.ZipFile(dest_dir, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            with zipfile.ZipFile(dest_dir, "w", zipfile.ZIP_DEFLATED) as zipf:
                 for file_path in downloaded_files:
                     zipf.write(file_path, os.path.basename(file_path))
 
@@ -339,4 +340,5 @@ def download_pixiv_artwork(
     finally:
         if temp_dir:
             import shutil
+
             shutil.rmtree(temp_dir)

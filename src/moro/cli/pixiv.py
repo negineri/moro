@@ -79,14 +79,6 @@ def pixiv(
     logger = logging.getLogger(__name__)
     logger.setLevel(log_level)
 
-    # Add handler only if not already set
-    if not logger.handlers:
-        handler = logging.StreamHandler()
-        handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        )
-        logger.addHandler(handler)
-
     # Check for refresh token
     if not refresh_token:
         logger.warning(
@@ -103,7 +95,7 @@ def pixiv(
             save_metadata=not no_metadata,
         )
 
-        if output_dir.lower().endswith('.zip'):
+        if output_dir.lower().endswith(".zip"):
             logger.info(f"Successfully created ZIP archive: {output_dir}")
         else:
             logger.info(f"Successfully downloaded {len(downloaded_files)} files to {output_dir}")

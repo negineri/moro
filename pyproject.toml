@@ -29,7 +29,8 @@ exclude = [
     "tests/",         # Optional: Skip if using stubs/mocks
     "build/",
     "dist/",
-    "docs/"
+    "docs/",
+    "temp/"
 ]
 plugins = [
     # "pydantic.mypy"  # If you're using pydantic
