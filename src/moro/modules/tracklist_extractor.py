@@ -4,6 +4,7 @@ import csv
 from pathlib import Path
 from typing import NamedTuple
 
+import httpx
 from bs4 import BeautifulSoup, Tag
 
 
@@ -27,7 +28,7 @@ class TracklistExtractor:
         Args:
             html_content: HTMLコンテンツ
         """
-        self.soup = BeautifulSoup(html_content, 'html.parser')
+        self.soup = BeautifulSoup(html_content, "html.parser")
 
     def extract_tracks(self) -> list[Track]:
         """
@@ -36,17 +37,17 @@ class TracklistExtractor:
         Returns:
             曲目リストのリスト
         """
-        tracks = []
+        tracks: list[Track] = []
 
         # テーブルの行を取得
-        table_rows = self.soup.find_all('tr')
+        table_rows = self.soup.find_all("tr")
 
         for row in table_rows:
             # Tagオブジェクトであることを確認
             if not isinstance(row, Tag):
                 continue
 
-            cells = row.find_all('td')
+            cells = row.find_all("td")
 
             # 最低限必要なセルがあるかチェック
             if len(cells) < 6:
@@ -57,7 +58,7 @@ class TracklistExtractor:
                 disc_cell = cells[1]
                 if not isinstance(disc_cell, Tag):
                     continue
-                if disc_cell.get('align') != 'center':
+                if disc_cell.get("align") != "center":
                     continue
 
                 disc_text = disc_cell.get_text(strip=True)
@@ -69,23 +70,23 @@ class TracklistExtractor:
                 track_cell = cells[2]
                 if not isinstance(track_cell, Tag):
                     continue
-                if track_cell.get('align') != 'right':
+                if track_cell.get("align") != "right":
                     continue
 
                 track_text = track_cell.get_text(strip=True)
-                if not track_text.replace('.', '').isdigit():
+                if not track_text.replace(".", "").isdigit():
                     continue
-                track = int(track_text.replace('.', ''))
+                track = int(track_text.replace(".", ""))
 
                 # 曲名を取得（4番目のセル）
                 title_cell = cells[3]
                 if not isinstance(title_cell, Tag):
                     continue
-                class_attr = title_cell.get('class')
-                if class_attr is None or 'clickable-row' not in class_attr:
+                class_attr = title_cell.get("class")
+                if class_attr is None or "clickable-row" not in class_attr:
                     continue
 
-                title_link = title_cell.find('a')
+                title_link = title_cell.find("a")
                 if not title_link or not isinstance(title_link, Tag):
                     continue
                 title = title_link.get_text(strip=True)
@@ -94,35 +95,31 @@ class TracklistExtractor:
                 duration_cell = cells[4]
                 if not isinstance(duration_cell, Tag):
                     continue
-                class_attr = duration_cell.get('class')
-                if class_attr is None or 'clickable-row' not in class_attr:
+                class_attr = duration_cell.get("class")
+                if class_attr is None or "clickable-row" not in class_attr:
                     continue
 
-                duration_link = duration_cell.find('a')
+                duration_link = duration_cell.find("a")
                 if not duration_link or not isinstance(duration_link, Tag):
                     continue
                 duration = duration_link.get_text(strip=True)
 
-                # ファイルサイズを取得（6番目のセル）
-                size_cell = cells[5]
+                # ファイルサイズを取得（7番目のセル）
+                size_cell = cells[6]
                 if not isinstance(size_cell, Tag):
                     continue
-                class_attr = size_cell.get('class')
-                if class_attr is None or 'clickable-row' not in class_attr:
+                class_attr = size_cell.get("class")
+                if class_attr is None or "clickable-row" not in class_attr:
                     continue
 
-                size_link = size_cell.find('a')
+                size_link = size_cell.find("a")
                 if not size_link or not isinstance(size_link, Tag):
                     continue
                 file_size = size_link.get_text(strip=True)
 
                 # トラック情報を作成
                 track_info = Track(
-                    disc=disc,
-                    track=track,
-                    title=title,
-                    duration=duration,
-                    file_size=file_size
+                    disc=disc, track=track, title=title, duration=duration, file_size=file_size
                 )
                 tracks.append(track_info)
 
@@ -140,21 +137,17 @@ class TracklistExtractor:
             tracks: 曲目リストのリスト
             output_path: 出力ファイルパス
         """
-        with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
+        with open(output_path, "w", newline="", encoding="utf-8") as csvfile:
             writer = csv.writer(csvfile)
 
             # ヘッダーを書き込み
-            writer.writerow(['Disc', 'Track', 'Title', 'Duration', 'File Size'])
+            writer.writerow(["Disc", "Track", "Title", "Duration", "File Size"])
 
             # データを書き込み
             for track in tracks:
-                writer.writerow([
-                    track.disc,
-                    track.track,
-                    track.title,
-                    track.duration,
-                    track.file_size
-                ])
+                writer.writerow(
+                    [track.disc, track.track, track.title, track.duration, track.file_size]
+                )
 
 
 def extract_tracklist_to_csv(html_file_path: Path, csv_file_path: Path) -> int:
@@ -169,7 +162,7 @@ def extract_tracklist_to_csv(html_file_path: Path, csv_file_path: Path) -> int:
         抽出されたトラック数
     """
     # HTMLファイルを読み込み
-    html_content = html_file_path.read_text(encoding='utf-8')
+    html_content = html_file_path.read_text(encoding="utf-8")
 
     # 曲目リストを抽出
     extractor = TracklistExtractor(html_content)
@@ -179,3 +172,40 @@ def extract_tracklist_to_csv(html_file_path: Path, csv_file_path: Path) -> int:
     extractor.save_to_csv(tracks, csv_file_path)
 
     return len(tracks)
+
+
+def extract_tracklist_from_url_to_csv(url: str, csv_file_path: Path) -> int:
+    """
+    URLから曲目リストを抽出してCSVファイルに保存する.
+
+    Args:
+        url: 曲目リストが含まれるWebページのURL
+        csv_file_path: 出力CSVファイルパス
+
+    Returns:
+        抽出されたトラック数
+
+    Raises:
+        httpx.HTTPError: HTTP通信エラー
+        ValueError: 無効なURLまたはHTMLコンテンツ
+    """
+    try:
+        # URLからHTMLコンテンツを取得
+        with httpx.Client(timeout=30.0) as client:
+            response = client.get(url)
+            response.raise_for_status()
+            html_content = response.text
+
+        # 曲目リストを抽出
+        extractor = TracklistExtractor(html_content)
+        tracks = extractor.extract_tracks()
+
+        # CSVファイルに保存
+        extractor.save_to_csv(tracks, csv_file_path)
+
+        return len(tracks)
+
+    except httpx.HTTPError as e:
+        raise httpx.HTTPError(f"URL取得エラー: {e}") from e
+    except Exception as e:
+        raise ValueError(f"HTML解析エラー: {e}") from e
