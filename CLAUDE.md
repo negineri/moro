@@ -53,6 +53,7 @@ This is a personal toolbox project (`moro`) that aggregates miscellaneous script
 - **Main Commands**:
   - `example` - Example/template command
   - `download` - URL downloader with ZIP compression and numbered prefix support
+  - `tracklist` - HTML tracklist extractor with CSV export functionality
 
 ### Code Standards
 
@@ -66,3 +67,13 @@ This is a personal toolbox project (`moro`) that aggregates miscellaneous script
 
 - CLI entry point: `moro.cli.cli:cli`
 - Module can be run directly: `python -m moro`
+
+## Implementation Best Practices
+
+### Type Safety
+
+- Use modern Python type hints (`list[T]` instead of `List[T]`)
+- Cast when necessary but prefer type guards (`isinstance`)
+- Handle optional types explicitly with Union or None checks
+- Use NamedTuple for structured data with immutability
+- Use Union types for Python 3.9 compatibility instead of `|` syntax
