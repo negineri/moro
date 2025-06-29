@@ -21,177 +21,168 @@ class Track(NamedTuple):
     track_url: str
 
 
-class TracklistExtractor:
-    """HTMLファイルから曲目リストを抽出してCSVに変換するクラス."""
+def extract_tracks(html_content: str, netloc: str) -> list[Track]:
+    """
+    HTMLから曲目リストを抽出する.
 
-    def __init__(self, html_content: str, netloc: str) -> None:
-        """
-        初期化メソッド.
+    Args:
+        html_content: HTMLコンテンツ
+        netloc: ドメイン名
 
-        Args:
-            html_content: HTMLコンテンツ
-            netloc: ドメイン名
-        """
-        self.soup = BeautifulSoup(html_content, "html.parser")
-        self.netloc = netloc
+    Returns:
+        曲目リストのリスト
+    """
+    soup = BeautifulSoup(html_content, "html.parser")
+    tracks: list[Track] = []
 
-    def extract_tracks(self) -> list[Track]:
-        """
-        HTMLから曲目リストを抽出する.
+    # テーブルの行を取得
+    table_rows = soup.find_all("tr")
 
-        Returns:
-            曲目リストのリスト
-        """
-        tracks: list[Track] = []
+    for row in table_rows:
+        # Tagオブジェクトであることを確認
+        if not isinstance(row, Tag):
+            continue
 
-        # テーブルの行を取得
-        table_rows = self.soup.find_all("tr")
+        cells = row.find_all("td")
 
-        for row in table_rows:
-            # Tagオブジェクトであることを確認
-            if not isinstance(row, Tag):
+        # 最低限必要なセルがあるかチェック
+        if len(cells) < 6:
+            continue
+
+        try:
+            # ディスク番号を取得（2番目のセル）
+            disc_cell = cells[1]
+            if not isinstance(disc_cell, Tag):
+                continue
+            if disc_cell.get("align") != "center":
                 continue
 
-            cells = row.find_all("td")
+            disc_text = disc_cell.get_text(strip=True)
+            if not disc_text.isdigit():
+                continue
+            disc = int(disc_text)
 
-            # 最低限必要なセルがあるかチェック
-            if len(cells) < 6:
+            # トラック番号を取得（3番目のセル）
+            track_cell = cells[2]
+            if not isinstance(track_cell, Tag):
+                continue
+            if track_cell.get("align") != "right":
                 continue
 
-            try:
-                # ディスク番号を取得（2番目のセル）
-                disc_cell = cells[1]
-                if not isinstance(disc_cell, Tag):
-                    continue
-                if disc_cell.get("align") != "center":
-                    continue
+            track_text = track_cell.get_text(strip=True)
+            if not track_text.replace(".", "").isdigit():
+                continue
+            track = int(track_text.replace(".", ""))
 
-                disc_text = disc_cell.get_text(strip=True)
-                if not disc_text.isdigit():
-                    continue
-                disc = int(disc_text)
-
-                # トラック番号を取得（3番目のセル）
-                track_cell = cells[2]
-                if not isinstance(track_cell, Tag):
-                    continue
-                if track_cell.get("align") != "right":
-                    continue
-
-                track_text = track_cell.get_text(strip=True)
-                if not track_text.replace(".", "").isdigit():
-                    continue
-                track = int(track_text.replace(".", ""))
-
-                # 曲名を取得（4番目のセル）
-                title_cell = cells[3]
-                if not isinstance(title_cell, Tag):
-                    continue
-                class_attr = title_cell.get("class")
-                if class_attr is None or "clickable-row" not in class_attr:
-                    continue
-
-                title_link = title_cell.find("a")
-                if not title_link or not isinstance(title_link, Tag):
-                    continue
-                title = title_link.get_text(strip=True)
-
-                # 長さを取得（5番目のセル）
-                duration_cell = cells[4]
-                if not isinstance(duration_cell, Tag):
-                    continue
-                class_attr = duration_cell.get("class")
-                if class_attr is None or "clickable-row" not in class_attr:
-                    continue
-
-                duration_link = duration_cell.find("a")
-                if not duration_link or not isinstance(duration_link, Tag):
-                    continue
-                duration = duration_link.get_text(strip=True)
-
-                # ファイルサイズを取得（7番目のセル）
-                size_cell = cells[6]
-                if not isinstance(size_cell, Tag):
-                    continue
-                class_attr = size_cell.get("class")
-                if class_attr is None or "clickable-row" not in class_attr:
-                    continue
-
-                size_link = size_cell.find("a")
-                if not size_link or not isinstance(size_link, Tag):
-                    continue
-                href = size_link.get("href")
-                if not href or not isinstance(href, str):
-                    continue
-
-                # hrefが相対パスの場合、完全なURLに変換
-                if not href.startswith("http"):
-                    href = f"https://{self.netloc}{href}"
-
-                # HTTPリクエストでHTMLコンテンツを取得
-                sleep(random.uniform(0.5, 1.5))  # noqa: S311
-                with httpx.Client(timeout=30.0) as client:
-                    response = client.get(href)
-                    response.raise_for_status()
-                    html_content = response.text
-
-                track_url = self.extract_track(html_content)
-
-                # トラック情報を作成
-                track_info = Track(
-                    disc=disc, track=track, title=title, duration=duration, track_url=track_url
-                )
-                tracks.append(track_info)
-
-            except (ValueError, AttributeError):
-                # 解析に失敗した行はスキップ
+            # 曲名を取得（4番目のセル）
+            title_cell = cells[3]
+            if not isinstance(title_cell, Tag):
+                continue
+            class_attr = title_cell.get("class")
+            if class_attr is None or "clickable-row" not in class_attr:
                 continue
 
-        return tracks
+            title_link = title_cell.find("a")
+            if not title_link or not isinstance(title_link, Tag):
+                continue
+            title = title_link.get_text(strip=True)
 
-    def extract_track(self, content: str) -> str:
-        """
-        HTMLからトラックのURLを抽出する.
+            # 長さを取得（5番目のセル）
+            duration_cell = cells[4]
+            if not isinstance(duration_cell, Tag):
+                continue
+            class_attr = duration_cell.get("class")
+            if class_attr is None or "clickable-row" not in class_attr:
+                continue
 
-        Args:
-            content: HTMLコンテンツ
+            duration_link = duration_cell.find("a")
+            if not duration_link or not isinstance(duration_link, Tag):
+                continue
+            duration = duration_link.get_text(strip=True)
 
-        Returns:
-            完全なトラックURL
-        """
-        soup = BeautifulSoup(content, "html.parser")
-        hrefs = soup.select("a[href]")
-        for a in hrefs:
-            href = a.get("href")
+            # ファイルサイズを取得（7番目のセル）
+            size_cell = cells[6]
+            if not isinstance(size_cell, Tag):
+                continue
+            class_attr = size_cell.get("class")
+            if class_attr is None or "clickable-row" not in class_attr:
+                continue
+
+            size_link = size_cell.find("a")
+            if not size_link or not isinstance(size_link, Tag):
+                continue
+            href = size_link.get("href")
             if not href or not isinstance(href, str):
                 continue
-            if not href.endswith(".flac"):
-                continue
 
-            # トラックのリンクを見つけたら返す
-            return href
+            # hrefが相対パスの場合、完全なURLに変換
+            if not href.startswith("http"):
+                href = f"https://{netloc}{href}"
 
-        return ""
+            # HTTPリクエストでHTMLコンテンツを取得
+            sleep(random.uniform(0.5, 1.5))  # noqa: S311
+            with httpx.Client(timeout=30.0) as client:
+                response = client.get(href)
+                response.raise_for_status()
+                html_content = response.text
 
-    def save_to_csv(self, tracks: list[Track], output_path: Path) -> None:
-        """
-        曲目リストをCSVファイルに保存する.
+            track_url = extract_track_url(html_content)
 
-        Args:
-            tracks: 曲目リストのリスト
-            output_path: 出力ファイルパス
-        """
-        with open(output_path, "w", newline="", encoding="utf-8") as csvfile:
-            writer = csv.writer(csvfile)
+            # トラック情報を作成
+            track_info = Track(
+                disc=disc, track=track, title=title, duration=duration, track_url=track_url
+            )
+            tracks.append(track_info)
 
-            # ヘッダーを書き込み
-            writer.writerow(["Disc", "Track", "Title", "Duration", "Track URL"])
+        except (ValueError, AttributeError):
+            # 解析に失敗した行はスキップ
+            continue
 
-            # データを書き込み
-            for track in tracks:
-                writer.writerow(
-                    [track.disc, track.track, track.title, track.duration, track.track_url]
-                )
+    return tracks
+
+
+def extract_track_url(content: str) -> str:
+    """
+    HTMLからトラックのURLを抽出する.
+
+    Args:
+        content: HTMLコンテンツ
+
+    Returns:
+        完全なトラックURL
+    """
+    soup = BeautifulSoup(content, "html.parser")
+    hrefs = soup.select("a[href]")
+    for a in hrefs:
+        href = a.get("href")
+        if not href or not isinstance(href, str):
+            continue
+        if not href.endswith(".flac"):
+            continue
+
+        # トラックのリンクを見つけたら返す
+        return href
+
+    return ""
+
+
+def save_tracks_to_csv(tracks: list[Track], output_path: Path) -> None:
+    """
+    曲目リストをCSVファイルに保存する.
+
+    Args:
+        tracks: 曲目リストのリスト
+        output_path: 出力ファイルパス
+    """
+    with open(output_path, "w", newline="", encoding="utf-8") as csvfile:
+        writer = csv.writer(csvfile)
+
+        # ヘッダーを書き込み
+        writer.writerow(["Disc", "Track", "Title", "Duration", "Track URL"])
+
+        # データを書き込み
+        for track in tracks:
+            writer.writerow([track.disc, track.track, track.title, track.duration, track.track_url])
 
 
 def extract_tracklist_from_url_to_csv(url: str, csv_file_path: Path) -> int:
@@ -222,11 +213,10 @@ def extract_tracklist_from_url_to_csv(url: str, csv_file_path: Path) -> int:
             raise ValueError("無効なURL: ドメイン名が取得できません")
 
         # 曲目リストを抽出
-        extractor = TracklistExtractor(html_content, netloc=netloc)
-        tracks = extractor.extract_tracks()
+        tracks = extract_tracks(html_content, netloc)
 
         # CSVファイルに保存
-        extractor.save_to_csv(tracks, csv_file_path)
+        save_tracks_to_csv(tracks, csv_file_path)
 
         return len(tracks)
 
