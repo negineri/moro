@@ -15,6 +15,7 @@ import shutil
 import tempfile
 import zipfile
 from typing import Optional
+from urllib.parse import unquote
 
 import httpx
 
@@ -93,6 +94,8 @@ def get_filename_with_prefix(url: str, total_count: int, current_index: int) -> 
     # URLからファイル名部分を抽出
     path = url.split("?")[0].split("#")[0]
     filename = os.path.basename(path)
+    # URLエンコードされたファイル名をデコード
+    filename = unquote(filename)
 
     # 拡張子を取得(拡張子がない場合は.binをデフォルトとする)
     ext = os.path.splitext(filename)[-1] or ".bin"
@@ -222,8 +225,18 @@ def download_from_url_list(
                     fname = get_filename_with_prefix(url, len(urls), idx)
                 else:
                     # 従来のプレフィックス機能を使用
-                    ext = os.path.splitext(url.split("?")[0].split("#")[0])[-1] or ".bin"
-                    fname = f"{prefix or 'file'}_{idx}{ext}"
+                    path = url.split("?")[0].split("#")[0]
+                    original_filename = os.path.basename(path)
+                    # URLエンコードされたファイル名をデコード
+                    original_filename = unquote(original_filename)
+                    ext = os.path.splitext(original_filename)[-1] or ".bin"
+
+                    if prefix is None:
+                        # prefixがNoneの場合は元のファイル名を使用
+                        fname = original_filename or f"file_{idx}{ext}"
+                    else:
+                        # prefixが指定されている場合は従来通り
+                        fname = f"{prefix}_{idx}{ext}"
 
                 path = save_content(content, download_dest, fname)
                 logger.info(f"Downloaded: {url} -> {path}")
