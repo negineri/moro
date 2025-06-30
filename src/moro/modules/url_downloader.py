@@ -14,6 +14,7 @@ import os
 import shutil
 import tempfile
 import zipfile
+from time import sleep
 from typing import Optional
 from urllib.parse import unquote
 
@@ -55,13 +56,14 @@ def read_url_list(file_path: str) -> list[str]:
         return [line.strip() for line in f if line.strip()]
 
 
-def download_content(url: str, timeout: float = 10.0) -> bytes:
+def download_content(url: str, timeout: float = 10.0, sleep_sec: float = 1.0) -> bytes:
     """
     Download content from the specified URL.
 
     Args:
         url (str): Target URL to download.
         timeout (float): Timeout in seconds. Default is 10 seconds.
+        sleep_sec (float): Sleep time in seconds after download. Default is 1 second.
 
     Returns:
         bytes: Downloaded binary data.
@@ -69,6 +71,7 @@ def download_content(url: str, timeout: float = 10.0) -> bytes:
     Raises:
         DownloadError: If the download fails.
     """
+    sleep(sleep_sec)
     try:
         with httpx.Client(timeout=timeout) as client:
             resp = client.get(url)
