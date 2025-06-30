@@ -1,6 +1,6 @@
 [project]
 name = "moro"
-version = "0.2.1"
+version = "0.3.0"
 description = "Add your description here"
 readme = "README.md"
 authors = [
@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.9"
 dependencies = [
+    "beautifulsoup4>=4.12.0",
     "click>=8.1.8",
     "dotenv>=0.9.9",
     "httpx>=0.25.0",
@@ -84,7 +85,7 @@ ignore = [
 convention = "google"
 
 [tool.bumpversion]
-current_version = "0.2.1"
+current_version = "0.3.0"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 search = "{current_version}"

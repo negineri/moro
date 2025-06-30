@@ -335,9 +335,9 @@ class TestDownloadFromUrlListZip:
         with zipfile.ZipFile(zip_path, "r") as zf:
             namelist = zf.namelist()
             assert len(namelist) == 3
-            assert "file_1.txt" in namelist
-            assert "file_2.pdf" in namelist
-            assert "file_3.jpg" in namelist
+            assert "file1.txt" in namelist
+            assert "file2.pdf" in namelist
+            assert "file3.jpg" in namelist
 
     @mock.patch("moro.modules.url_downloader.download_content")
     def test_download_to_zip_with_auto_prefix(
