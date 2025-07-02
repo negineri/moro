@@ -10,7 +10,8 @@ from moro.cli.example import example
 from moro.cli.pixiv import pixiv
 from moro.cli.tracklist import tracklist
 from moro.cli.url_downloader import download
-from moro.config.settings import ConfigRepo
+from moro.config.settings import AppConfig
+from moro.dependencies.container import create_injector
 
 logger = getLogger(__name__)
 
@@ -19,7 +20,11 @@ logger = getLogger(__name__)
 @click.version_option()
 def cli() -> None:
     """Entry point for the CLI."""
-    config = ConfigRepo().read()
+    # Create injector and store in context
+    injector = create_injector()
+
+    # Configure logging
+    config = injector.get(AppConfig)
     dictConfig(config.logging_config)
 
 

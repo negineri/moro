@@ -5,13 +5,13 @@ This module provides classes and methods to handle application configuration,
 including reading environment variables and setting up logging.
 """
 
-from dataclasses import dataclass
 from os import getenv
 from os.path import dirname, join
 from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
+from injector import singleton
 from yaml import safe_load
 
 ENV_PREFIX = "MORO_"
@@ -19,8 +19,8 @@ ENV_PREFIX = "MORO_"
 # Domain Object
 
 
-@dataclass
-class Config:
+@singleton
+class AppConfig:
     """
     Configuration class for the application.
 
@@ -29,41 +29,43 @@ class Config:
         logging_config_path (str): Path to the logging configuration file.
     """
 
-    jobs: int  # Number of jobs for processing
-    logging_config: dict[str, Any]  # Logging configuration
-
-
-# Repository Implementation
-
-
-@dataclass
-class ConfigRepo:
-    """Repository for configuration."""
-
-    def read(self) -> Config:
+    def __init__(self) -> None:
         """
-        Read configuration.
+        Initialize the AppConfig instance.
 
-        Returns:
-            Config: Configuration object
-
-        Raises:
-            FileNotFoundError: If the configuration file is not found.
+        This constructor loads environment variables and sets up the configuration
+        attributes.
         """
         load_dotenv()
 
-        jobs = int(getenv(f"{ENV_PREFIX}JOBS", "16"))
-        logging_config_path = Path(
-            getenv(f"{ENV_PREFIX}LOGGING_CONFIG_PATH", join(dirname(__file__), "logging.yml"))
-        )
+        self.jobs = int(getenv(f"{ENV_PREFIX}JOBS", "16"))  # Number of jobs for processing
+        self.logging_config: dict[str, Any] = _load_logging_config()  # Logging configuration
 
-        if logging_config_path.exists():
-            with open(logging_config_path) as f:
-                logging_config = safe_load(f)
-        else:
-            raise FileNotFoundError(f"Logging configuration file not found: {logging_config_path}")
+    def __str__(self) -> str:
+        """
+        String representation of the AppConfig instance.
 
-        return Config(
-            jobs=jobs,
-            logging_config=logging_config,
-        )
+        Returns:
+            str: String representation of the configuration.
+        """
+        return vars(self).__str__()
+
+
+def _load_logging_config() -> Any:
+    """
+    Load the logging configuration from the environment variable or default path.
+
+    Returns:
+        dict[str, Any]: Logging configuration dictionary.
+
+    Raises:
+        FileNotFoundError: If the logging configuration file does not exist.
+    """
+    logging_config_path = Path(
+        getenv(f"{ENV_PREFIX}LOGGING_CONFIG_PATH", join(dirname(__file__), "logging.yml"))
+    )
+    if logging_config_path.exists():
+        with open(logging_config_path) as f:
+            return safe_load(f)
+    else:
+        raise FileNotFoundError(f"Logging configuration file not found: {logging_config_path}")
