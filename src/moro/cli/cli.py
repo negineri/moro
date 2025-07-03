@@ -7,6 +7,7 @@ import click
 
 from moro.cli._utils import AliasedGroup
 from moro.cli.example import example
+from moro.cli.fantia import fantia
 from moro.cli.pixiv import pixiv
 from moro.cli.tracklist import tracklist
 from moro.cli.url_downloader import download
@@ -32,3 +33,4 @@ cli.add_command(example)
 cli.add_command(tracklist)
 cli.add_command(download)
 cli.add_command(pixiv)
+cli.add_command(fantia)
