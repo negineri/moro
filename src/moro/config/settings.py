@@ -5,18 +5,36 @@ This module provides classes and methods to handle application configuration,
 including reading environment variables and setting up logging.
 """
 
+from dataclasses import dataclass, field
 from os import getenv
 from os.path import dirname, join
 from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
-from injector import singleton
+from injector import inject, singleton
+from platformdirs import PlatformDirs
 from yaml import safe_load
 
-ENV_PREFIX = "MORO_"
+from moro.modules.fantia import FantiaConfig
 
-# Domain Object
+ENV_PREFIX = "MORO_"
+pfd = PlatformDirs(appname="moro", appauthor="negineri")
+
+
+@singleton
+@dataclass
+class GlobalConfig:
+    """
+    Global configuration class for the application.
+
+    This class holds global settings that can be accessed throughout the application.
+    """
+
+    jobs = 16  # Number of jobs for processing
+    logging_config: dict[str, Any] = field(default_factory=dict[str, Any])  # Logging configuration
+    user_data_dir = pfd.user_data_dir  # User data directory
+    working_dir = "."  # Working directory
 
 
 @singleton
@@ -29,17 +47,22 @@ class AppConfig:
         logging_config_path (str): Path to the logging configuration file.
     """
 
-    def __init__(self) -> None:
+    @inject
+    def __init__(
+        self,
+        global_config: GlobalConfig,
+        fantia: FantiaConfig,
+    ) -> None:
         """
         Initialize the AppConfig instance.
 
         This constructor loads environment variables and sets up the configuration
         attributes.
         """
-        load_dotenv()
+        self.app = global_config  # Global configuration instance
+        self.fantia = fantia  # Fantia-specific configuration
 
-        self.jobs = int(getenv(f"{ENV_PREFIX}JOBS", "16"))  # Number of jobs for processing
-        self.logging_config: dict[str, Any] = _load_logging_config()  # Logging configuration
+        self.load_env()
 
     def __str__(self) -> str:
         """
@@ -49,6 +72,30 @@ class AppConfig:
             str: String representation of the configuration.
         """
         return vars(self).__str__()
+
+    def load_env(self) -> None:
+        """
+        Load environment variables into the AppConfig instance.
+
+        This function loads environment variables from a .env file and updates the
+        AppConfig instance with the loaded values.
+
+        Args:
+            config (AppConfig): The AppConfig instance to update.
+        """
+        load_dotenv()
+        self.app.jobs = int(getenv(f"{ENV_PREFIX}JOBS", self.app.jobs))
+        self.app.logging_config = _load_logging_config()
+        self.app.user_data_dir = getenv(f"{ENV_PREFIX}USER_DATA_DIR", self.app.user_data_dir)
+        self.app.working_dir = getenv(f"{ENV_PREFIX}WORKING_DIR", self.app.working_dir)
+        self.fantia.priorize_webp = (
+            getenv(f"{ENV_PREFIX}FANTIA_PRIORIZE_WEBP", str(self.fantia.priorize_webp)).lower()
+            == "true"
+        )
+        self.fantia.download_thumb = (
+            getenv(f"{ENV_PREFIX}FANTIA_DOWNLOAD_THUMB", str(self.fantia.download_thumb)).lower()
+            == "true"
+        )
 
 
 def _load_logging_config() -> Any:

@@ -8,13 +8,18 @@ import re
 import time
 from dataclasses import dataclass
 from datetime import datetime as dt
+from email.utils import parsedate_to_datetime
 from os import makedirs, remove
-from typing import Any
+from typing import Annotated, Any, Optional
 from urllib.parse import unquote, urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
 from click import echo
+from injector import inject, singleton
+from pydantic import BaseModel, Field
+from selenium import webdriver
+from trio import Path
 
 logger = logging.getLogger(__name__)
 
@@ -62,10 +67,26 @@ MIMETYPES = {
 UNICODE_CONTROL_MAP = dict.fromkeys(range(32))
 
 
+@singleton
+@dataclass
+class FantiaConfig:
+    """Configuration for the Fantia client."""
+
+    session_id: Optional[str] = None
+    directory: str = "downloads/fantia"
+    dump_metadata: bool = False
+    mark_incomplete_posts: bool = False
+    parse_for_external_links: bool = False
+    download_thumb: bool = False
+    use_server_filenames: bool = False
+    priorize_webp: bool = False
+
+
 class FantiaClient(httpx.Client):
     """A synchronous HTTP client for interacting with the Fantia API."""
 
-    def __init__(self, session_id: str, *args: Any, **kwargs: Any) -> None:
+    @inject
+    def __init__(self, config: FantiaConfig) -> None:
         timeout = httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=5.0)
 
         # Transport configuration with retry logic
@@ -79,9 +100,9 @@ class FantiaClient(httpx.Client):
             # "Connection": "keep-alive",
         }
 
-        cookies = {
-            "_session_id": session_id,
-        }
+        cookies: dict[str, str] = {}
+        if config.session_id:
+            cookies["_session_id"] = config.session_id
 
         # Initialize synchronous client
 
@@ -96,22 +117,10 @@ class FantiaClient(httpx.Client):
             "cookies": cookies,
         }
 
-        super().__init__(*args, **{**kwargs, **options})
+        super().__init__(**options)
 
 
-@dataclass
-class FantiaConfig:
-    """Configuration for the Fantia client."""
-
-    directory: str = "downloads/fantia"
-    dump_metadata: bool = False
-    mark_incomplete_posts: bool = False
-    parse_for_external_links: bool = False
-    download_thumb: bool = False
-    use_server_filenames: bool = False
-
-
-def _get_csrf_token(client: FantiaClient, post_id: str) -> str:
+def get_csrf_token(client: FantiaClient, post_id: str) -> str:
     """Retrieve the CSRF token from the post HTML."""
     post_html_response = client.get(POST_URL.format(post_id))
     post_html_response.raise_for_status()
@@ -393,7 +402,7 @@ def _download_file(
     )  # Force serve filenames to prevent duplicate collision
 
 
-def login(client: FantiaClient) -> bool:
+def _check_login(client: FantiaClient) -> bool:
     """Check if the session is valid by fetching the user data."""
     check_user = client.get(ME_API)
     if not (check_user.is_success or check_user.status_code == 304):
@@ -402,11 +411,152 @@ def login(client: FantiaClient) -> bool:
     return True
 
 
+def login_fantia(client: FantiaClient, options: webdriver.ChromeOptions) -> bool:
+    """Login to Fantia using Selenium and set the session cookies."""
+    check_user = client.get(ME_API)
+    if check_user.is_success or check_user.status_code == 304:
+        return True
+    with webdriver.Chrome(options=options) as driver:
+        driver.get(LOGIN_SIGNIN_URL)
+        while True:
+            parsed_url = urlparse(driver.current_url)
+            if parsed_url.path == "/" and parsed_url.netloc == DOMAIN:
+                # Successfully logged in
+                cookies: list[dict[str, str]] = driver.get_cookies()  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
+                client.cookies.clear()  # Clear existing cookies
+                for cookie in cookies:
+                    if (
+                        cookie["name"] == "_session_id"
+                        or cookie["name"] == "jp_chatplus_vtoken"
+                        or cookie["name"] == "_f_v_k_1"
+                    ):
+                        client.cookies.set(cookie["name"], cookie["value"], domain=DOMAIN)
+                    elif (
+                        cookie["name"] == "cvi"
+                        or cookie["name"] == "gid"
+                        or cookie["name"] == "lamp"
+                    ):
+                        continue  # These cookies are not needed for the Fantia API
+                    else:
+                        continue
+                break
+        return True
+
+    return False
+
+
+def create_chrome_options(userdata: str) -> webdriver.ChromeOptions:
+    """Create Chrome options for the Fantia login."""
+    makedirs(userdata, exist_ok=True)
+    options = webdriver.ChromeOptions()
+    options.add_argument(f"--user-data-dir={userdata}")
+    return options
+
+
+class FantiaFile(BaseModel):
+    """Data model for Fantia post file."""
+
+    url: Annotated[str, Field(description="The URL to download the file")]
+    ext: Annotated[str, Field(description="The file extension")]
+
+
+class FantiaPhotoGallery(BaseModel):
+    """Data model for Fantia post photo gallery."""
+
+    id: Annotated[str, Field(description="The ID of the photo")]
+    title: Annotated[str, Field(description="The title of the photo")]
+    comment: Annotated[Optional[str], Field(description="The comment of the photo")]
+    photos: Annotated[list[FantiaFile], Field(description="The URLs of the photos in the gallery")]
+
+
+class FantiaPostData(BaseModel):
+    """Data model for Fantia post data."""
+
+    id: Annotated[str, Field(description="The ID of the post")]
+    title: Annotated[str, Field(description="The title of the post")]
+    creator_name: Annotated[str, Field(description="The name of the post creator")]
+    creator_id: Annotated[str, Field(description="The ID of the post creator")]
+    contents: Annotated[list[Any], Field(description="The contents of the post")]
+    contents_photo_gallery: Annotated[
+        list[FantiaPhotoGallery], Field(description="The photo gallery of the post")
+    ]
+    posted_at: Annotated[int, Field(description="The timestamp when the post was created")]
+    converted_at: Annotated[int, Field(description="The timestamp when the post was converted")]
+    comment: Annotated[Optional[str], Field(description="The comment of the post")]
+
+
+def parse_post(client: FantiaClient, post_id: str, priorize_webp: bool) -> FantiaPostData:
+    """Parse a post and return its data."""
+    if not _check_login(client):
+        raise ValueError("Invalid session. Please verify your session cookie.")
+    echo(f"Parsing post {post_id}...\n")
+    csrf_token = get_csrf_token(client, post_id)
+    response = client.get(
+        POST_API.format(post_id),
+        headers={"X-CSRF-Token": csrf_token, "X-Requested-With": "XMLHttpRequest"},
+    )
+    response.raise_for_status()
+    post_json: dict[str, Any] = json.loads(response.text)["post"]
+
+    post_id = post_json["id"]
+    post_creator = post_json["fanclub"]["creator_name"]
+    post_creator_id = post_json.get("fanclub", {}).get("id", "")
+    post_title = post_json["title"]
+    post_contents = post_json["post_contents"]
+    post_posted_at = int(parsedate_to_datetime(post_json["posted_at"]).timestamp())
+    post_converted_at = (
+        int(dt.fromisoformat(post_json["converted_at"]).timestamp())
+        if post_json["converted_at"]
+        else post_posted_at
+    )
+    post_comment = post_json.get("comment", None)
+    if post_json.get("is_blog") is not False:
+        echo("Post is a blog post!\n")
+        raise NotImplementedError(
+            "Blog posts are not yet supported. Please check the Moro GitHub repository for updates."
+        )
+
+    contents_photo_gallery: list[FantiaPhotoGallery] = []
+    for content in post_contents:
+        if content["category"] == "photo_gallery":
+            contents_photo_gallery.append(_parse_photo_gallery(content))
+
+    return FantiaPostData(
+        id=str(post_id),
+        title=post_title,
+        creator_name=post_creator,
+        creator_id=str(post_creator_id),
+        contents=post_contents,
+        contents_photo_gallery=contents_photo_gallery,
+        posted_at=post_posted_at,
+        converted_at=post_converted_at,
+        comment=post_comment,
+    )
+
+
+def _parse_photo_gallery(post_content: dict[str, Any]) -> FantiaPhotoGallery:
+    """Parse a photo gallery post content and return a FantiaPhotoGallery object."""
+    photos: list[FantiaFile] = []
+    for photo in post_content["post_content_photos"]:
+        url: str = photo["url"]["original"]
+        path = urlparse(url).path
+        ext = Path(path).suffix
+        photos.append(FantiaFile(url=url, ext=ext))
+    return FantiaPhotoGallery(
+        id=str(post_content["id"]),
+        title=post_content.get("title", ""),
+        comment=post_content.get("comment", None),
+        photos=photos,
+    )
+
+
 def download_post(client: FantiaClient, post_id: str, config: FantiaConfig) -> None:
     """Download a post to its own directory."""
+    if not _check_login(client):
+        raise ValueError("Invalid session. Please verify your session cookie.")
     echo(f"Downloading post {post_id}...\n")
 
-    csrf_token = _get_csrf_token(client, post_id)
+    csrf_token = get_csrf_token(client, post_id)
 
     response = client.get(
         POST_API.format(post_id),
@@ -466,3 +616,32 @@ def download_post(client: FantiaClient, post_id: str, config: FantiaConfig) -> N
     if not os.listdir(post_directory):
         logger.info(f"No content downloaded for post {post_id}. Deleting directory.\n")
         os.rmdir(post_directory)
+
+
+def download_photo_gallery(
+    client: httpx.Client, post_path: str, post_content: FantiaPhotoGallery
+) -> None:
+    """Download a photo gallery to the specified directory."""
+    if post_content.comment is not None:
+        file_path = post_path + "/comment.txt"
+        with open(file_path, mode="w") as f:
+            f.write(post_content.comment)
+    for index, photo in enumerate(post_content.photos):
+        with client.stream("GET", photo.url) as response:
+            if response.status_code == 404:
+                logger.info("Download URL returned 404. Skipping...\n")
+                return
+            response.raise_for_status()
+
+            file_path = os.path.join(post_path, (format(index + 1, "03") + photo.ext))
+            file_size = int(response.headers["Content-Length"])
+            downloaded = 0
+            with open(file_path, mode="wb") as f:
+                for chunk in response.iter_bytes():
+                    downloaded += len(chunk)
+                    f.write(chunk)
+
+                if downloaded != file_size:
+                    raise Exception(
+                        f"Downloaded file size mismatch (expected {file_size}, got {downloaded})"
+                    )

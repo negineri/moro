@@ -1,13 +1,10 @@
 """Dependency injection container configuration."""
 
-from injector import Binder, Injector, Module
+from injector import Injector, Module
 
 
 class RepositoryModule(Module):
     """Module for repository bindings."""
-
-    def configure(self, binder: Binder) -> None:
-        """Configure repository bindings."""
 
 
 def create_injector() -> Injector:

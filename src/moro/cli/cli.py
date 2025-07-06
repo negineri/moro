@@ -26,7 +26,7 @@ def cli() -> None:
 
     # Configure logging
     config = injector.get(AppConfig)
-    dictConfig(config.logging_config)
+    dictConfig(config.app.logging_config)
 
 
 cli.add_command(example)
