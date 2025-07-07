@@ -24,7 +24,7 @@ pfd = PlatformDirs(appname="moro", appauthor="negineri")
 
 @singleton
 @dataclass
-class GlobalConfig:
+class AppConfig:
     """
     Global configuration class for the application.
 
@@ -37,41 +37,19 @@ class GlobalConfig:
     working_dir = "."  # Working directory
 
 
+@inject
 @singleton
-class AppConfig:
+@dataclass
+class ConfigRepository:
     """
-    Configuration class for the application.
+    Configuration repository for the application.
 
-    Attributes:
-        jobs (int): Number of jobs for processing.
-        logging_config_path (str): Path to the logging configuration file.
+    This class holds the application configuration and provides methods to load
+    environment variables into the configuration.
     """
 
-    @inject
-    def __init__(
-        self,
-        global_config: GlobalConfig,
-        fantia: FantiaConfig,
-    ) -> None:
-        """
-        Initialize the AppConfig instance.
-
-        This constructor loads environment variables and sets up the configuration
-        attributes.
-        """
-        self.app = global_config  # Global configuration instance
-        self.fantia = fantia  # Fantia-specific configuration
-
-        self.load_env()
-
-    def __str__(self) -> str:
-        """
-        String representation of the AppConfig instance.
-
-        Returns:
-            str: String representation of the configuration.
-        """
-        return vars(self).__str__()
+    app: AppConfig = field(default_factory=AppConfig)  # Global configuration instance
+    fantia: FantiaConfig = field(default_factory=FantiaConfig)  # Fantia-specific configuration
 
     def load_env(self) -> None:
         """

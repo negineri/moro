@@ -5,7 +5,7 @@ from logging import getLogger
 import click
 
 from moro.cli._utils import AliasedGroup
-from moro.config.settings import AppConfig
+from moro.config.settings import ConfigRepository
 from moro.dependencies.container import create_injector
 
 logger = getLogger(__name__)
@@ -22,5 +22,5 @@ def echo() -> None:
     """Echo command."""
     # Example of accessing injector from context
     injector = create_injector()
-    config = injector.get(AppConfig)
+    config = injector.get(ConfigRepository)
     click.echo(f"Current configuration: {config}")

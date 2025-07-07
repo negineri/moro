@@ -6,7 +6,7 @@ Provides a command-line interface for interacting with Fantia, including login f
 
 import click
 
-from moro.config.settings import AppConfig
+from moro.config.settings import ConfigRepository
 from moro.dependencies.container import create_injector
 from moro.usecases.fantia import FantiaDownloadPostUseCase
 
@@ -28,7 +28,8 @@ from moro.usecases.fantia import FantiaDownloadPostUseCase
 def fantia(url: str, session_id: str) -> None:
     """Interact with Fantia using the provided URL and session ID."""
     injector = create_injector()
-    config = injector.get(AppConfig)
+    config = injector.get(ConfigRepository)
+    config.load_env()
     config.fantia.download_thumb = True
     config.fantia.session_id = session_id
 

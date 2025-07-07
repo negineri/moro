@@ -11,7 +11,7 @@ from moro.cli.fantia import fantia
 from moro.cli.pixiv import pixiv
 from moro.cli.tracklist import tracklist
 from moro.cli.url_downloader import download
-from moro.config.settings import AppConfig
+from moro.config.settings import ConfigRepository
 from moro.dependencies.container import create_injector
 
 logger = getLogger(__name__)
@@ -25,7 +25,8 @@ def cli() -> None:
     injector = create_injector()
 
     # Configure logging
-    config = injector.get(AppConfig)
+    config = injector.get(ConfigRepository)
+    config.load_env()
     dictConfig(config.app.logging_config)
 
 

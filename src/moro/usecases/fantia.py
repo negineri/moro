@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from click import echo
 from injector import inject
 
-from moro.config.settings import AppConfig
+from moro.config.settings import ConfigRepository
 from moro.modules.fantia import (
     FantiaClient,
     create_chrome_options,
@@ -21,7 +21,7 @@ from moro.modules.fantia import (
 class FantiaDownloadPostUseCase:
     """Use case for downloading a post from Fantia."""
 
-    config: AppConfig
+    config: ConfigRepository
     client: FantiaClient
 
     def execute(self, post_id: str) -> None:
