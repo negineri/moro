@@ -2,16 +2,15 @@
 
 import json
 import logging
-import mimetypes
 import os
 import re
 import time
 from dataclasses import dataclass
 from datetime import datetime as dt
 from email.utils import parsedate_to_datetime
-from os import makedirs, remove
+from os import makedirs
 from typing import Annotated, Any, Optional
-from urllib.parse import unquote, urljoin, urlparse
+from urllib.parse import urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
@@ -138,268 +137,34 @@ def sanitize_for_path(value: str, replace: str = " ") -> str:
     return re.sub(r"[\s.]+$", "", sanitized)
 
 
-def _collect_post_titles(post_metadata: Any) -> list[str]:
-    """Collect all post titles to check for duplicate names and rename as necessary."""
-    post_titles: list[str] = []
-    for post in post_metadata["post_contents"]:
-        try:
-            potential_title = post["title"] or post["parent_post"]["title"]
-            if not potential_title:
-                potential_title = str(post["id"])
-        except KeyError:
-            potential_title = str(post["id"])
-
-        title = potential_title
-        counter = 2
-        while title in post_titles:
-            title = potential_title + f"_{counter}"
-            counter += 1
-        post_titles.append(title)
-
-    return post_titles
+# def _parse_external_links(post_description: str, post_directory: str, directory: str) -> None:
+#     """Parse the post description for external links, e.g. Mega and Google Drive links."""
+#     link_matches = EXTERNAL_LINKS_RE.findall(post_description)
+#     if link_matches:
+#         logger.info(f"Found {len(link_matches)} external link(s) in post. Saving...\n")
+#         _build_crawljob(link_matches, directory, post_directory)
 
 
-def _save_metadata(metadata: Any, directory: str) -> None:
-    """Save the metadata for a post to the post's directory."""
-    filename = os.path.join(directory, "metadata.json")
-    with open(filename, "w", encoding="utf-8") as file:
-        json.dump(metadata, file, sort_keys=True, ensure_ascii=False, indent=4)
-
-
-def _mark_incomplete_post(post_metadata: Any, post_directory: str) -> None:
-    """Mark incomplete posts with a .incomplete file."""
-    is_incomplete = False
-    incomplete_filename = os.path.join(post_directory, ".incomplete")
-    for post in post_metadata["post_contents"]:
-        if post["visible_status"] != "visible":
-            is_incomplete = True
-            break
-    if is_incomplete:
-        if not os.path.exists(incomplete_filename):
-            open(incomplete_filename, "a").close()
-    else:
-        if os.path.exists(incomplete_filename):
-            remove(incomplete_filename)
-
-
-def _download_thumbnail(
-    client: httpx.Client, thumb_url: str, post_directory: str, use_server_filenames: bool
-) -> None:
-    """Download a thumbnail to the post's directory."""
-    extension = _process_content_type(client, thumb_url)
-    filename = os.path.join(post_directory, "thumb" + extension)
-    _perform_download(client, thumb_url, filename, use_server_filename=use_server_filenames)
-
-
-def _process_content_type(client: httpx.Client, url: str) -> str:
-    """Process the Content-Type from a request header and use it to build a filename."""
-    url_header = client.head(url, follow_redirects=True)
-    mimetype = url_header.headers["Content-Type"]
-    return _guess_extension(mimetype, url)
-
-
-def _guess_extension(mimetype: str, download_url: str) -> str:
-    """
-    Guess the file extension from the mimetype or force a specific extension for certain mimetypes.
-
-    If the mimetype returns no found extension, guess based on the download URL.
-    """
-    extension = MIMETYPES.get(mimetype) or mimetypes.guess_extension(mimetype, strict=True)
-    if extension is None:
-        try:
-            path = urlparse(download_url).path
-            extension = os.path.splitext(path)[1]
-        except IndexError:
-            extension = ".unknown"
-    return extension
-
-
-def _perform_download(
-    client: httpx.Client,
-    url: str,
-    filepath: str,
-    use_server_filename: bool = False,
-    append_server_extension: bool = False,
-) -> None:
-    """Perform a download for the specified URL while showing progress."""
-    url_path = unquote(url.split("?", 1)[0])
-    server_filename = os.path.basename(url_path)
-    if use_server_filename:
-        filepath = os.path.join(os.path.dirname(filepath), server_filename)
-
-    with client.stream("GET", url) as response:
-        if response.status_code == 404:
-            logger.info("Download URL returned 404. Skipping...\n")
-            return
-        response.raise_for_status()
-
-        # Handle redirects so we can properly catch an excluded filename
-        # Attachments typically route from fantia.jp/posts/#/download/#
-        # Images typically are served directly from cc.fantia.jp
-        # Metadata images typically are served from c.fantia.jp
-        if str(response.url) != url:
-            url_path = unquote(str(response.url).split("?", 1)[0])
-            server_filename = os.path.basename(url_path)
-            if use_server_filename:
-                filepath = os.path.join(os.path.dirname(filepath), server_filename)
-
-        if not use_server_filename and append_server_extension:
-            filepath += _guess_extension(response.headers["Content-Type"], url)
-
-        file_size = int(response.headers["Content-Length"])
-        if os.path.isfile(filepath) and os.stat(filepath).st_size == file_size:
-            logger.info(f"File found (skipping): {filepath}\n")
-            return
-
-        logger.info(f"File: {filepath}\n")
-        incomplete_filename = filepath + ".part"
-
-        downloaded = 0
-        with open(incomplete_filename, "wb") as file:
-            for chunk in response.iter_bytes():
-                downloaded += len(chunk)
-                file.write(chunk)
-
-        if downloaded != file_size:
-            raise Exception(
-                f"Downloaded file size mismatch (expected {file_size}, got {downloaded})"
-            )
-
-        if os.path.exists(filepath):
-            os.remove(filepath)
-        os.rename(incomplete_filename, filepath)
-
-        modification_time_string = response.headers["Last-Modified"]
-        modification_time = int(
-            dt.strptime(modification_time_string, "%a, %d %b %Y %H:%M:%S %Z").timestamp()
-        )
-        if modification_time:
-            access_time = int(time.time())
-            os.utime(filepath, times=(access_time, modification_time))
-
-
-def _parse_external_links(post_description: str, post_directory: str, directory: str) -> None:
-    """Parse the post description for external links, e.g. Mega and Google Drive links."""
-    link_matches = EXTERNAL_LINKS_RE.findall(post_description)
-    if link_matches:
-        logger.info(f"Found {len(link_matches)} external link(s) in post. Saving...\n")
-        _build_crawljob(link_matches, directory, post_directory)
-
-
-def _build_crawljob(links: list[Any], root_directory: str, post_directory: str) -> None:
-    """Append to a root .crawljob file with external links gathered from a post."""
-    filename = os.path.join(root_directory, CRAWLJOB_FILENAME)
-    with open(filename, "a", encoding="utf-8") as file:
-        for link in links:
-            crawl_dict: dict[str, str] = {
-                "packageName": "Fantia",
-                "text": link,
-                "downloadFolder": post_directory,
-                "enabled": "true",
-                "autoStart": "true",
-                "forcedStart": "true",
-                "autoConfirm": "true",
-                "addOfflineLink": "true",
-                "extractAfterDownload": "false",
-            }
-
-            for key, value in crawl_dict.items():
-                file.write(key + "=" + value + "\n")
-            file.write("\n")
-
-
-def _download_post_content(
-    client: httpx.Client,
-    post_json: Any,
-    post_directory: str,
-    post_title: str,
-    directory: str,
-    parse_for_external_links: bool,
-    use_server_filenames: bool,
-) -> bool:
-    """Parse the post's content to determine whether to save the content as a photo or file."""
-    logger.info(f"> Content {post_json['id']}\n")
-
-    if post_json["visible_status"] != "visible":
-        logger.info("Post content not available on current plan. Skipping...\n")
-        return False
-
-    if post_json.get("category"):
-        if post_json["category"] == "photo_gallery":
-            photo_gallery = post_json["post_content_photos"]
-            photo_counter = 0
-            gallery_directory = os.path.join(post_directory, sanitize_for_path(post_title))
-            os.makedirs(gallery_directory, exist_ok=True)
-            for photo in photo_gallery:
-                photo_url = photo["url"]["original"]
-                _download_photo(
-                    client, photo_url, photo_counter, gallery_directory, use_server_filenames
-                )
-                photo_counter += 1
-        elif post_json["category"] == "file":
-            filename = os.path.join(post_directory, post_json["filename"])
-            download_url = urljoin(POSTS_URL, post_json["download_uri"])
-            _download_file(client, download_url, filename, post_directory)
-        elif post_json["category"] == "embed":
-            if parse_for_external_links:
-                # TODO: Check what URLs are allowed as embeds
-                link_as_list = [post_json["embed_url"]]
-                logger.info(
-                    "Adding embedded link {} to {}.\n".format(
-                        post_json["embed_url"], CRAWLJOB_FILENAME
-                    )
-                )
-                _build_crawljob(link_as_list, directory, post_directory)
-        elif post_json["category"] == "blog":
-            blog_comment = post_json["comment"]
-            blog_json = json.loads(blog_comment)
-            photo_counter = 0
-            gallery_directory = os.path.join(post_directory, sanitize_for_path(post_title))
-            os.makedirs(gallery_directory, exist_ok=True)
-            for op in blog_json["ops"]:
-                if type(op["insert"]) is dict and op["insert"].get("fantiaImage"):
-                    photo_url = urljoin(BASE_URL, op["insert"]["fantiaImage"]["original_url"])
-                    _download_photo(
-                        client, photo_url, photo_counter, gallery_directory, use_server_filenames
-                    )
-                    photo_counter += 1
-        else:
-            logger.info(
-                'Post content category "{}" is not supported. Skipping...\n'.format(
-                    post_json.get("category")
-                )
-            )
-            return False
-
-    if parse_for_external_links:
-        post_description = post_json["comment"] or ""
-        _parse_external_links(post_description, os.path.abspath(post_directory), directory)
-
-    return True
-
-
-def _download_photo(
-    client: httpx.Client,
-    photo_url: str,
-    photo_counter: int,
-    gallery_directory: str,
-    use_server_filenames: bool,
-) -> None:
-    """Download a photo to the post's directory."""
-    extension = _process_content_type(client, photo_url)
-    filename = (
-        os.path.join(gallery_directory, str(photo_counter) + extension) if gallery_directory else ""
-    )
-    _perform_download(client, photo_url, filename, use_server_filename=use_server_filenames)
-
-
-def _download_file(
-    client: httpx.Client, download_url: str, filename: str, post_directory: str
-) -> None:
-    """Download a file to the post's directory."""
-    _perform_download(
-        client, download_url, filename, use_server_filename=True
-    )  # Force serve filenames to prevent duplicate collision
+# def _build_crawljob(links: list[Any], root_directory: str, post_directory: str) -> None:
+#     """Append to a root .crawljob file with external links gathered from a post."""
+#     filename = os.path.join(root_directory, CRAWLJOB_FILENAME)
+#     with open(filename, "a", encoding="utf-8") as file:
+#         for link in links:
+#             crawl_dict: dict[str, str] = {
+#                 "packageName": "Fantia",
+#                 "text": link,
+#                 "downloadFolder": post_directory,
+#                 "enabled": "true",
+#                 "autoStart": "true",
+#                 "forcedStart": "true",
+#                 "autoConfirm": "true",
+#                 "addOfflineLink": "true",
+#                 "extractAfterDownload": "false",
+#             }
+#
+#             for key, value in crawl_dict.items():
+#                 file.write(key + "=" + value + "\n")
+#             file.write("\n")
 
 
 def _check_login(client: FantiaClient) -> bool:
@@ -453,7 +218,7 @@ def create_chrome_options(userdata: str) -> webdriver.ChromeOptions:
     return options
 
 
-class FantiaFile(BaseModel):
+class FantiaURL(BaseModel):
     """Data model for Fantia post file."""
 
     url: Annotated[str, Field(description="The URL to download the file")]
@@ -466,7 +231,35 @@ class FantiaPhotoGallery(BaseModel):
     id: Annotated[str, Field(description="The ID of the photo")]
     title: Annotated[str, Field(description="The title of the photo")]
     comment: Annotated[Optional[str], Field(description="The comment of the photo")]
-    photos: Annotated[list[FantiaFile], Field(description="The URLs of the photos in the gallery")]
+    photos: Annotated[list[FantiaURL], Field(description="The URLs of the photos in the gallery")]
+
+
+class FantiaFile(BaseModel):
+    """Data model for Fantia post file."""
+
+    id: Annotated[str, Field(description="The ID of the file")]
+    title: Annotated[str, Field(description="The title of the file")]
+    comment: Annotated[Optional[str], Field(description="The comment of the file")]
+    url: Annotated[str, Field(description="The URL to download the file")]
+    name: Annotated[str, Field(description="The name of the file")]
+
+
+class FantiaText(BaseModel):
+    """Data model for Fantia post text content."""
+
+    id: Annotated[str, Field(description="The ID of the text content")]
+    title: Annotated[str, Field(description="The title of the text content")]
+    comment: Annotated[Optional[str], Field(description="The comment of the text content")]
+
+
+class FantiaProduct(BaseModel):
+    """Data model for Fantia product."""
+
+    id: Annotated[str, Field(description="The ID of the product")]
+    title: Annotated[str, Field(description="The title of the product")]
+    comment: Annotated[Optional[str], Field(description="The comment of the product")]
+    name: Annotated[str, Field(description="The name of the product")]
+    url: Annotated[str, Field(description="The URL of the product")]
 
 
 class FantiaPostData(BaseModel):
@@ -480,9 +273,13 @@ class FantiaPostData(BaseModel):
     contents_photo_gallery: Annotated[
         list[FantiaPhotoGallery], Field(description="The photo gallery of the post")
     ]
+    contents_files: Annotated[list[FantiaFile], Field(description="The files of the post")]
+    contents_text: Annotated[list[FantiaText], Field(description="The text contents of the post")]
+    contents_products: Annotated[list[FantiaProduct], Field(description="The products of the post")]
     posted_at: Annotated[int, Field(description="The timestamp when the post was created")]
     converted_at: Annotated[int, Field(description="The timestamp when the post was converted")]
     comment: Annotated[Optional[str], Field(description="The comment of the post")]
+    thumbnail: Annotated[Optional[FantiaURL], Field(description="The URL of the post thumbnail")]
 
 
 def parse_post(client: FantiaClient, post_id: str, priorize_webp: bool) -> FantiaPostData:
@@ -512,14 +309,37 @@ def parse_post(client: FantiaClient, post_id: str, priorize_webp: bool) -> Fanti
     post_comment = post_json.get("comment", None)
     if post_json.get("is_blog") is not False:
         echo("Post is a blog post!\n")
-        raise NotImplementedError(
-            "Blog posts are not yet supported. Please check the Moro GitHub repository for updates."
-        )
+        raise NotImplementedError(f"Blog posts are not supported yet. Post ID: {post_id}")
 
     contents_photo_gallery: list[FantiaPhotoGallery] = []
+    contents_files: list[FantiaFile] = []
+    contents_text: list[FantiaText] = []
+    contents_products: list[FantiaProduct] = []
+    post_thumbnail: Optional[FantiaURL] = None
+    if post_json.get("thumb"):
+        thumb_url = post_json["thumb"]["original"]
+        post_thumbnail = FantiaURL(url=thumb_url, ext=Path(thumb_url).suffix)
     for content in post_contents:
+        if content["visible_status"] != "visible":
+            logger.info(
+                f"Post content {content['id']} is not available on current plan. Skipping..."
+            )
+            continue
         if content["category"] == "photo_gallery":
             contents_photo_gallery.append(_parse_photo_gallery(content))
+        elif content["category"] == "file":
+            contents_files.append(_parse_file(content))
+        elif content["category"] == "text":
+            contents_text.append(_parse_text(content))
+        elif content["category"] == "product":
+            contents_products.append(_parse_product(content))
+        else:
+            raise NotImplementedError(
+                (
+                    f"Post content category '{content['category']}' is not supported yet.",
+                    f"Post ID: {post_id}",
+                )
+            )
 
     return FantiaPostData(
         id=str(post_id),
@@ -528,94 +348,124 @@ def parse_post(client: FantiaClient, post_id: str, priorize_webp: bool) -> Fanti
         creator_id=str(post_creator_id),
         contents=post_contents,
         contents_photo_gallery=contents_photo_gallery,
+        contents_files=contents_files,
+        contents_text=contents_text,
+        contents_products=contents_products,
         posted_at=post_posted_at,
         converted_at=post_converted_at,
         comment=post_comment,
+        thumbnail=post_thumbnail,
+    )
+
+
+def _parse_product(post_content: dict[str, Any]) -> FantiaProduct:
+    """Parse a product post content and return a FantiaProduct object."""
+    title = post_content.get("title", "")
+    if title is None:
+        title = ""
+    url = urljoin(BASE_URL, post_content["product"].get("uri", ""))
+    name = post_content["product"].get("name", "")
+    return FantiaProduct(
+        id=str(post_content["id"]),
+        title=title,
+        comment=post_content.get("comment", None),
+        name=name,
+        url=url,
+    )
+
+
+def _parse_text(post_content: dict[str, Any]) -> FantiaText:
+    """Parse a text post content and return a FantiaText object."""
+    title = post_content.get("title", "")
+    if title is None:
+        title = ""
+    return FantiaText(
+        id=str(post_content["id"]),
+        title=title,
+        comment=post_content.get("comment", None),
+    )
+
+
+def _parse_file(post_content: dict[str, Any]) -> FantiaFile:
+    """Parse a file post content and return a FantiaFile object."""
+    path: str = post_content["download_uri"]
+    url = urljoin(BASE_URL, path)
+    ext = Path(path).suffix
+    title = post_content.get("title", "")
+    if title is None:
+        title = ""
+    return FantiaFile(
+        id=str(post_content["id"]),
+        title=title,
+        comment=post_content.get("comment", None),
+        url=url,
+        name=post_content.get("filename", f"file_{post_content['id']}{ext}"),
     )
 
 
 def _parse_photo_gallery(post_content: dict[str, Any]) -> FantiaPhotoGallery:
     """Parse a photo gallery post content and return a FantiaPhotoGallery object."""
-    photos: list[FantiaFile] = []
+    title = post_content.get("title", "")
+    if title is None:
+        title = ""
+
+    photos: list[FantiaURL] = []
     for photo in post_content["post_content_photos"]:
         url: str = photo["url"]["original"]
         path = urlparse(url).path
         ext = Path(path).suffix
-        photos.append(FantiaFile(url=url, ext=ext))
+        photos.append(FantiaURL(url=url, ext=ext))
     return FantiaPhotoGallery(
         id=str(post_content["id"]),
-        title=post_content.get("title", ""),
+        title=title,
         comment=post_content.get("comment", None),
         photos=photos,
     )
 
 
-def download_post(client: FantiaClient, post_id: str, config: FantiaConfig) -> None:
-    """Download a post to its own directory."""
-    if not _check_login(client):
-        raise ValueError("Invalid session. Please verify your session cookie.")
-    echo(f"Downloading post {post_id}...\n")
+def _perform_download(client: httpx.Client, url: str, path: str) -> None:
+    """Perform a download for the specified URL while showing progress."""
+    with client.stream("GET", url) as response:
+        if response.status_code == 404:
+            logger.info("Thumbnail URL returned 404. Skipping...\n")
+            return
+        response.raise_for_status()
 
-    csrf_token = get_csrf_token(client, post_id)
+        file_size = int(response.headers["Content-Length"])
+        downloaded = 0
+        with open(path, mode="wb") as f:
+            for chunk in response.iter_bytes():
+                downloaded += len(chunk)
+                f.write(chunk)
 
-    response = client.get(
-        POST_API.format(post_id),
-        headers={"X-CSRF-Token": csrf_token, "X-Requested-With": "XMLHttpRequest"},
-    )
-    response.raise_for_status()
-    post_json = json.loads(response.text)["post"]
+            if downloaded != file_size:
+                raise Exception(
+                    f"Downloaded thumbnail size mismatch (expected {file_size}, got {downloaded})"
+                )
 
-    post_id = post_json["id"]
-    post_creator = post_json["fanclub"]["creator_name"]
-    post_title = post_json["title"]
-    post_contents = post_json["post_contents"]
 
-    # post_posted_at = int(parsedate_to_datetime(post_json["posted_at"]).timestamp())
-    # post_converted_at = (
-    #     int(dt.fromisoformat(post_json["converted_at"]).timestamp())
-    #     if post_json["converted_at"]
-    #     else post_posted_at
-    # )
+def download_thumbnail(client: httpx.Client, post_path: str, post_content: FantiaPostData) -> None:
+    """Download the thumbnail of a post to the specified directory."""
+    if post_content.thumbnail is not None:
+        thumb_url = post_content.thumbnail.url
+        ext = post_content.thumbnail.ext
+        file_path = os.path.join(post_path, "0000_thumb" + ext)
+        _perform_download(client, thumb_url, file_path)
+    else:
+        logger.info("No thumbnail found for this post. Skipping...\n")
 
-    post_directory_title = sanitize_for_path(str(post_id))
 
-    post_directory = os.path.join(
-        config.directory, sanitize_for_path(post_creator), post_directory_title
-    )
-    makedirs(post_directory, exist_ok=True)
+def download_file(client: httpx.Client, post_path: str, post_content: FantiaFile) -> None:
+    """Download a file to the specified directory."""
+    if post_content.comment is not None:
+        file_path = post_path + "/comment.txt"
+        with open(file_path, mode="w") as f:
+            f.write(post_content.comment)
 
-    post_titles = _collect_post_titles(post_json)
-
-    if config.dump_metadata:
-        _save_metadata(post_json, post_directory)
-    if config.mark_incomplete_posts:
-        _mark_incomplete_post(post_json, post_directory)
-    if config.download_thumb and post_json["thumb"]:
-        _download_thumbnail(
-            client, post_json["thumb"]["original"], post_directory, config.use_server_filenames
-        )
-    if config.parse_for_external_links:
-        # Main post
-        post_description = post_json["comment"] or ""
-        _parse_external_links(post_description, os.path.abspath(post_directory), config.directory)
-
-    download_complete_counter = 0
-    for post_index, post in enumerate(post_contents):
-        post_title = post_titles[post_index]
-        if _download_post_content(
-            client,
-            post,
-            post_directory,
-            post_title,
-            config.directory,
-            config.parse_for_external_links,
-            config.use_server_filenames,
-        ):
-            download_complete_counter += 1
-
-    if not os.listdir(post_directory):
-        logger.info(f"No content downloaded for post {post_id}. Deleting directory.\n")
-        os.rmdir(post_directory)
+    download_url = post_content.url
+    file_name = post_content.name
+    file_path = os.path.join(post_path, file_name)
+    _perform_download(client, download_url, file_path)
 
 
 def download_photo_gallery(
@@ -627,21 +477,53 @@ def download_photo_gallery(
         with open(file_path, mode="w") as f:
             f.write(post_content.comment)
     for index, photo in enumerate(post_content.photos):
-        with client.stream("GET", photo.url) as response:
-            if response.status_code == 404:
-                logger.info("Download URL returned 404. Skipping...\n")
-                return
-            response.raise_for_status()
+        _perform_download(
+            client,
+            photo.url,
+            os.path.join(post_path, f"{index:04d}{photo.ext}"),
+        )
 
-            file_path = os.path.join(post_path, (format(index + 1, "03") + photo.ext))
-            file_size = int(response.headers["Content-Length"])
-            downloaded = 0
-            with open(file_path, mode="wb") as f:
-                for chunk in response.iter_bytes():
-                    downloaded += len(chunk)
-                    f.write(chunk)
 
-                if downloaded != file_size:
-                    raise Exception(
-                        f"Downloaded file size mismatch (expected {file_size}, got {downloaded})"
-                    )
+def get_posts_by_user(client: FantiaClient, user_id: str, interval: float = 1) -> list[str]:
+    """Get all post ids by a user."""
+    if not _check_login(client):
+        raise ValueError("Invalid session. Please verify your session cookie.")
+    logger.info(f"Fetching posts for user {user_id}...\n")
+
+    posts: list[str] = []
+    page = 1
+    while True:
+        logger.info(f"Fetching page {page}...")
+        response = client.get(FANCLUB_POSTS_HTML.format(user_id, page))
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        post_elements = soup.select("div.post")
+        if not post_elements:
+            break
+
+        for post_element in post_elements:
+            post_title_ele = post_element.select_one(".post-title")
+            if post_title_ele is None:
+                logger.warning("Post title not found. Skipping post.")
+                continue
+            post_title = post_title_ele.string
+            if post_title is None:
+                logger.warning("Post title is None. Skipping post.")
+                continue
+
+            post_href_ele = post_element.select_one("a.link-block")
+            if post_href_ele is None:
+                logger.warning("Post link not found. Skipping post.")
+                continue
+            post_href = post_href_ele.get("href")
+            if post_href is None:
+                logger.warning("Post link is None. Skipping post.")
+                continue
+
+            post_id = Path(str(post_href)).name
+            posts.append(post_id)
+
+        page += 1
+        time.sleep(interval)
+
+    return posts
