@@ -304,8 +304,8 @@ class FantiaPostData(BaseModel):
     thumbnail: Annotated[Optional[FantiaURL], Field(description="The URL of the post thumbnail")]
 
 
-def parse_post(client: FantiaClient, post_id: str) -> FantiaPostData:
-    """Parse a post and return its data."""
+def _fetch_post_data(client: FantiaClient, post_id: str) -> dict[str, Any]:
+    """Fetch post data from the API."""
     if not check_login(client):
         raise ValueError("Invalid session. Please verify your session cookie.")
     logger.info(f"Parsing post {post_id}...")
@@ -315,8 +315,12 @@ def parse_post(client: FantiaClient, post_id: str) -> FantiaPostData:
         headers={"X-CSRF-Token": csrf_token, "X-Requested-With": "XMLHttpRequest"},
     )
     response.raise_for_status()
-    post_json: dict[str, Any] = json.loads(response.text)["post"]
+    post: dict[str, Any] = json.loads(response.text)["post"]
+    return post
 
+
+def _extract_post_metadata(post_json: dict[str, Any]) -> dict[str, Any]:
+    """Extract basic metadata from post JSON."""
     post_id = post_json["id"]
     post_creator = post_json["fanclub"]["creator_name"]
     post_creator_id = post_json.get("fanclub", {}).get("id", "")
@@ -329,18 +333,43 @@ def parse_post(client: FantiaClient, post_id: str) -> FantiaPostData:
         else post_posted_at
     )
     post_comment = post_json.get("comment", None)
+
+    return {
+        "id": post_id,
+        "creator": post_creator,
+        "creator_id": post_creator_id,
+        "title": post_title,
+        "contents": post_contents,
+        "posted_at": post_posted_at,
+        "converted_at": post_converted_at,
+        "comment": post_comment,
+    }
+
+
+def _validate_post_type(post_json: dict[str, Any], post_id: str) -> None:
+    """Validate that the post is not a blog post."""
     if post_json.get("is_blog") is not False:
         logger.error("Post is a blog post!\n")
         raise NotImplementedError(f"Blog posts are not supported yet. Post ID: {post_id}")
 
+
+def _parse_post_thumbnail(post_json: dict[str, Any]) -> Optional[FantiaURL]:
+    """Parse thumbnail from post JSON."""
+    if post_json.get("thumb"):
+        thumb_url = post_json["thumb"]["original"]
+        return FantiaURL(url=thumb_url, ext=Path(thumb_url).suffix)
+    return None
+
+
+def _parse_post_contents(
+    post_contents: list[dict[str, Any]], post_id: str
+) -> tuple[list[FantiaPhotoGallery], list[FantiaFile], list[FantiaText], list[FantiaProduct]]:
+    """Parse all post contents by category."""
     contents_photo_gallery: list[FantiaPhotoGallery] = []
     contents_files: list[FantiaFile] = []
     contents_text: list[FantiaText] = []
     contents_products: list[FantiaProduct] = []
-    post_thumbnail: Optional[FantiaURL] = None
-    if post_json.get("thumb"):
-        thumb_url = post_json["thumb"]["original"]
-        post_thumbnail = FantiaURL(url=thumb_url, ext=Path(thumb_url).suffix)
+
     for content in post_contents:
         if content["visible_status"] != "visible":
             logger.info(
@@ -357,25 +386,37 @@ def parse_post(client: FantiaClient, post_id: str) -> FantiaPostData:
             contents_products.append(_parse_product(content))
         else:
             raise NotImplementedError(
-                (
-                    f"Post content category '{content['category']}' is not supported yet.",
-                    f"Post ID: {post_id}",
-                )
+                f"Post content category '{content['category']}' is not supported yet. "
+                f"Post ID: {post_id}"
             )
 
+    return contents_photo_gallery, contents_files, contents_text, contents_products
+
+
+def parse_post(client: FantiaClient, post_id: str) -> FantiaPostData:
+    """Parse a post and return its data."""
+    post_json = _fetch_post_data(client, post_id)
+    metadata = _extract_post_metadata(post_json)
+    _validate_post_type(post_json, str(metadata["id"]))
+
+    post_thumbnail = _parse_post_thumbnail(post_json)
+    contents_photo_gallery, contents_files, contents_text, contents_products = _parse_post_contents(
+        metadata["contents"], str(metadata["id"])
+    )
+
     return FantiaPostData(
-        id=str(post_id),
-        title=post_title,
-        creator_name=post_creator,
-        creator_id=str(post_creator_id),
-        contents=post_contents,
+        id=str(metadata["id"]),
+        title=metadata["title"],
+        creator_name=metadata["creator"],
+        creator_id=str(metadata["creator_id"]),
+        contents=metadata["contents"],
         contents_photo_gallery=contents_photo_gallery,
         contents_files=contents_files,
         contents_text=contents_text,
         contents_products=contents_products,
-        posted_at=post_posted_at,
-        converted_at=post_converted_at,
-        comment=post_comment,
+        posted_at=metadata["posted_at"],
+        converted_at=metadata["converted_at"],
+        comment=metadata["comment"],
         thumbnail=post_thumbnail,
     )
 
