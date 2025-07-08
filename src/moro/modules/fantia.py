@@ -14,7 +14,6 @@ from urllib.parse import urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
-from click import echo
 from injector import inject, singleton
 from pydantic import BaseModel, Field
 from selenium import webdriver
@@ -286,7 +285,7 @@ def parse_post(client: FantiaClient, post_id: str, priorize_webp: bool) -> Fanti
     """Parse a post and return its data."""
     if not _check_login(client):
         raise ValueError("Invalid session. Please verify your session cookie.")
-    echo(f"Parsing post {post_id}...\n")
+    logger.info(f"Parsing post {post_id}...")
     csrf_token = get_csrf_token(client, post_id)
     response = client.get(
         POST_API.format(post_id),
@@ -308,7 +307,7 @@ def parse_post(client: FantiaClient, post_id: str, priorize_webp: bool) -> Fanti
     )
     post_comment = post_json.get("comment", None)
     if post_json.get("is_blog") is not False:
-        echo("Post is a blog post!\n")
+        logger.error("Post is a blog post!\n")
         raise NotImplementedError(f"Blog posts are not supported yet. Post ID: {post_id}")
 
     contents_photo_gallery: list[FantiaPhotoGallery] = []
@@ -480,7 +479,7 @@ def download_photo_gallery(
         _perform_download(
             client,
             photo.url,
-            os.path.join(post_path, f"{index:04d}{photo.ext}"),
+            os.path.join(post_path, f"{index:03d}{photo.ext}"),
         )
 
 

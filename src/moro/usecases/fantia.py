@@ -2,11 +2,13 @@
 
 import os
 from dataclasses import dataclass
+from datetime import datetime as dt
 from time import sleep
 from venv import logger
 
 from click import echo
 from injector import inject
+from pathvalidate import sanitize_filename
 
 from moro.config.settings import ConfigRepository
 from moro.modules.fantia import (
@@ -96,7 +98,9 @@ class FantiaDownloadPostsByUserUseCase:
                 "downloads",
                 "fantia",
                 post.creator_id,
-                f"{post.id}_{post.title}_{post.converted_at}",
+                sanitize_filename(
+                    f"{post.id}_{post.title}_{dt.fromtimestamp(post.converted_at).strftime('%Y%m%d%H%M')}"
+                ),
             )
             os.makedirs(data_dir, exist_ok=True)
             if post.comment:
@@ -108,13 +112,15 @@ class FantiaDownloadPostsByUserUseCase:
 
             for photo_gallery in post.contents_photo_gallery:
                 echo(f"Downloading photo gallery: {photo_gallery.title}")
-                content_dir = os.path.join(data_dir, f"{photo_gallery.id}_{photo_gallery.title}")
+                content_dir = os.path.join(
+                    data_dir, sanitize_filename(f"{photo_gallery.id}_{photo_gallery.title}")
+                )
                 os.makedirs(content_dir, exist_ok=True)
                 download_photo_gallery(self.client, content_dir, photo_gallery)
 
             for file in post.contents_files:
                 echo(f"Downloading file: {file.title}")
-                content_dir = os.path.join(data_dir, f"{file.id}_{file.title}")
+                content_dir = os.path.join(data_dir, sanitize_filename(f"{file.id}_{file.title}"))
                 os.makedirs(content_dir, exist_ok=True)
                 download_file(self.client, content_dir, file)
 
@@ -123,7 +129,7 @@ class FantiaDownloadPostsByUserUseCase:
                 if not text.comment:
                     logger.warning(f"Text content {text.id} has no comment.")
                     continue
-                content_dir = os.path.join(data_dir, f"{text.id}_{text.title}")
+                content_dir = os.path.join(data_dir, sanitize_filename(f"{text.id}_{text.title}"))
                 os.makedirs(content_dir, exist_ok=True)
                 with open(os.path.join(content_dir, "content.txt"), mode="w") as f:
                     f.write(text.comment)
@@ -133,7 +139,9 @@ class FantiaDownloadPostsByUserUseCase:
                 if not product.comment:
                     logger.warning(f"Product content {product.id} has no comment.")
                     continue
-                content_dir = os.path.join(data_dir, f"{product.id}_{product.title}")
+                content_dir = os.path.join(
+                    data_dir, sanitize_filename(f"{product.id}_{product.title}")
+                )
                 os.makedirs(content_dir, exist_ok=True)
                 with open(os.path.join(content_dir, "content.txt"), mode="w") as f:
                     f.write(product.comment)

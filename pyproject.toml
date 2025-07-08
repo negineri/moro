@@ -13,6 +13,7 @@ dependencies = [
     "fantiadl>=2.0.4",
     "httpx>=0.25.0",
     "injector>=0.22.0",
+    "pathvalidate>=3.3.1",
     "pixivpy>=3.7.0",
     "platformdirs>=4.3.7",
     "pre-commit>=4.2.0",
