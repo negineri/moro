@@ -6,11 +6,11 @@ including reading environment variables and setting up logging.
 """
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from os import getenv
 from os.path import dirname, expanduser, join
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional, Union, get_type_hints
 
 from dotenv import load_dotenv
 from injector import inject, singleton
@@ -124,46 +124,82 @@ class ConfigRepository:
             config_data: Configuration data to merge.
         """
         if "app" in config_data:
-            self._merge_app_config(config_data["app"])
+            self._merge_config_generic(self.app, config_data["app"], "app")
         if "fantia" in config_data:
-            self._merge_fantia_config(config_data["fantia"])
+            self._merge_config_generic(self.fantia, config_data["fantia"], "fantia")
 
-    def _merge_app_config(self, app_config: dict[str, Any]) -> None:
+    def _merge_config_generic(
+        self, config_obj: Any, config_data: dict[str, Any], config_name: str
+    ) -> None:
         """
-        Merge app configuration data.
+        Generic configuration merging using type hints for automatic type conversion.
 
         Args:
-            app_config: App configuration data to merge.
+            config_obj: Configuration object to update.
+            config_data: Configuration data to merge.
+            config_name: Name of the configuration section for logging.
         """
-        if "jobs" in app_config:
-            self.app.jobs = int(app_config["jobs"])
-        if "user_data_dir" in app_config:
-            self.app.user_data_dir = str(app_config["user_data_dir"])
-        if "working_dir" in app_config:
-            self.app.working_dir = str(app_config["working_dir"])
+        type_hints = get_type_hints(type(config_obj))
 
-    def _merge_fantia_config(self, fantia_config: dict[str, Any]) -> None:
-        """
-        Merge fantia configuration data.
-
-        Args:
-            fantia_config: Fantia configuration data to merge.
-        """
-        for key, value in fantia_config.items():
-            if hasattr(self.fantia, key):
-                # Type conversion for specific fields
-                if key in ["max_retries", "concurrent_downloads"]:
-                    value = int(value)
-                elif key in ["timeout_connect", "timeout_read", "timeout_write", "timeout_pool"]:
-                    value = float(value)
-                elif key in ["download_thumb", "priorize_webp", "use_server_filenames"]:
-                    value = bool(value) if isinstance(value, bool) else _parse_bool(str(value))
-                elif key in ["session_id", "directory"]:
-                    value = str(value) if value is not None else None
-
-                setattr(self.fantia, key, value)
+        for key, value in config_data.items():
+            if hasattr(config_obj, key):
+                field_type = type_hints.get(key)
+                try:
+                    converted_value = self._convert_value(value, field_type)
+                    setattr(config_obj, key, converted_value)
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Failed to convert {config_name}.{key} = {value}: {e}")
             else:
-                logger.warning(f"Unknown fantia configuration key: {key}")
+                logger.warning(f"Unknown {config_name} configuration key: {key}")
+
+    def _convert_value(self, value: Any, target_type: Optional[type]) -> Any:
+        """
+        Convert a value to the specified type using type hints.
+
+        Args:
+            value: Value to convert.
+            target_type: Target type for conversion.
+
+        Returns:
+            Converted value.
+
+        Raises:
+            ValueError: If conversion fails.
+            TypeError: If type is not supported.
+        """
+        if target_type is None or value is None:
+            return value
+
+        # Handle Optional[T] (Union[T, None]) for Python 3.9
+        if hasattr(target_type, '__origin__'):
+            origin = target_type.__origin__
+            if origin is Union:
+                # Optional[T] is represented as Union[T, None]
+                args = target_type.__args__  # type: ignore
+                if len(args) == 2 and type(None) in args:
+                    if value is None:
+                        return None
+                    # Get the non-None type
+                    actual_type = args[0] if args[1] is type(None) else args[1]
+                    return self._convert_value(value, actual_type)
+
+        # Basic type conversions
+        if target_type is bool:
+            if isinstance(value, bool):
+                return value
+            return _parse_bool(str(value))
+
+        if target_type is int:
+            return int(value)
+
+        if target_type is float:
+            return float(value)
+
+        if target_type is str:
+            return str(value) if value is not None else None
+
+        # If no specific conversion is needed, return as-is
+        return value
 
     def validate_config(self) -> None:
         """
@@ -185,25 +221,38 @@ class ConfigRepository:
             Dict[str, Any]: Configuration summary.
         """
         return {
-            "app": {
-                "jobs": self.app.jobs,
-                "user_data_dir": self.app.user_data_dir,
-                "working_dir": self.app.working_dir,
-            },
-            "fantia": {
-                "session_id": "***" if self.fantia.session_id else None,
-                "directory": self.fantia.directory,
-                "download_thumb": self.fantia.download_thumb,
-                "priorize_webp": self.fantia.priorize_webp,
-                "use_server_filenames": self.fantia.use_server_filenames,
-                "max_retries": self.fantia.max_retries,
-                "timeout_connect": self.fantia.timeout_connect,
-                "timeout_read": self.fantia.timeout_read,
-                "timeout_write": self.fantia.timeout_write,
-                "timeout_pool": self.fantia.timeout_pool,
-                "concurrent_downloads": self.fantia.concurrent_downloads,
-            },
+            "app": self._get_object_summary(self.app),
+            "fantia": self._get_object_summary(self.fantia, mask_fields={"session_id"}),
         }
+
+    def _get_object_summary(
+        self, config_obj: Any, mask_fields: Optional[set[str]] = None
+    ) -> dict[str, Any]:
+        """
+        Get a summary of a configuration object using reflection.
+
+        Args:
+            config_obj: Configuration object to summarize.
+            mask_fields: Set of field names to mask with "***".
+
+        Returns:
+            Dict[str, Any]: Object summary.
+        """
+        if mask_fields is None:
+            mask_fields = set()
+
+        summary = {}
+        # Get all dataclass fields
+        for field_obj in fields(config_obj):
+            field_name = field_obj.name
+            value = getattr(config_obj, field_name)
+            # Mask sensitive fields
+            if field_name in mask_fields and value is not None:
+                summary[field_name] = "***"
+            else:
+                summary[field_name] = value
+
+        return summary
 
     def load_env(self) -> None:
         """
