@@ -5,9 +5,10 @@ This module provides classes and methods to handle application configuration,
 including reading environment variables and setting up logging.
 """
 
+import logging
 from dataclasses import dataclass, field
 from os import getenv
-from os.path import dirname, join
+from os.path import dirname, expanduser, join
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,8 @@ from platformdirs import PlatformDirs
 from yaml import safe_load
 
 from moro.modules.fantia import FantiaConfig
+
+logger = logging.getLogger(__name__)
 
 ENV_PREFIX = "MORO_"
 pfd = PlatformDirs(appname="moro", appauthor="negineri")
@@ -51,12 +54,164 @@ class ConfigRepository:
     app: AppConfig = field(default_factory=AppConfig)  # Global configuration instance
     fantia: FantiaConfig = field(default_factory=FantiaConfig)  # Fantia-specific configuration
 
+    def load_all(self) -> None:
+        """
+        Load configuration from all sources.
+
+        Loads configuration in the following priority order:
+        1. Default values (already set in dataclass defaults)
+        2. Configuration files
+        3. Environment variables
+
+        Raises:
+            ValueError: If any configuration value is invalid.
+        """
+        self.load_config_files()
+        self.load_env()
+        self.validate_config()
+
+    def load_config_files(self) -> None:
+        """
+        Load configuration from YAML configuration files.
+
+        Searches for configuration files in the following order:
+        1. ~/.config/moro/config.yml (XDG config directory)
+        2. ~/.moro/config.yml (traditional config directory)
+        3. ./moro.yml (project-local configuration)
+        """
+        config_paths = self.get_config_paths()
+
+        for path in config_paths:
+            if path.exists():
+                try:
+                    logger.info(f"Loading configuration from {path}")
+                    config_data = self._load_yaml_file(path)
+                    self.merge_config(config_data)
+                except Exception as e:
+                    logger.warning(f"Failed to load configuration file {path}: {e}")
+
+    def get_config_paths(self) -> list[Path]:
+        """
+        Get list of configuration file paths in priority order.
+
+        Returns:
+            List[Path]: Configuration file paths in priority order.
+        """
+        return [
+            Path(expanduser("~/.config/moro/config.yml")),
+            Path(expanduser("~/.moro/config.yml")),
+            Path("./moro.yml"),
+        ]
+
+    def _load_yaml_file(self, path: Path) -> dict[str, Any]:
+        """
+        Load YAML configuration file.
+
+        Args:
+            path: Path to the YAML file.
+
+        Returns:
+            Dict[str, Any]: Configuration data from the YAML file.
+        """
+        with open(path, encoding="utf-8") as f:
+            return safe_load(f) or {}
+
+    def merge_config(self, config_data: dict[str, Any]) -> None:
+        """
+        Merge configuration data into existing configuration.
+
+        Args:
+            config_data: Configuration data to merge.
+        """
+        if "app" in config_data:
+            self._merge_app_config(config_data["app"])
+        if "fantia" in config_data:
+            self._merge_fantia_config(config_data["fantia"])
+
+    def _merge_app_config(self, app_config: dict[str, Any]) -> None:
+        """
+        Merge app configuration data.
+
+        Args:
+            app_config: App configuration data to merge.
+        """
+        if "jobs" in app_config:
+            self.app.jobs = int(app_config["jobs"])
+        if "user_data_dir" in app_config:
+            self.app.user_data_dir = str(app_config["user_data_dir"])
+        if "working_dir" in app_config:
+            self.app.working_dir = str(app_config["working_dir"])
+
+    def _merge_fantia_config(self, fantia_config: dict[str, Any]) -> None:
+        """
+        Merge fantia configuration data.
+
+        Args:
+            fantia_config: Fantia configuration data to merge.
+        """
+        for key, value in fantia_config.items():
+            if hasattr(self.fantia, key):
+                # Type conversion for specific fields
+                if key in ["max_retries", "concurrent_downloads"]:
+                    value = int(value)
+                elif key in ["timeout_connect", "timeout_read", "timeout_write", "timeout_pool"]:
+                    value = float(value)
+                elif key in ["download_thumb", "priorize_webp", "use_server_filenames"]:
+                    value = bool(value) if isinstance(value, bool) else _parse_bool(str(value))
+                elif key in ["session_id", "directory"]:
+                    value = str(value) if value is not None else None
+
+                setattr(self.fantia, key, value)
+            else:
+                logger.warning(f"Unknown fantia configuration key: {key}")
+
+    def validate_config(self) -> None:
+        """
+        Validate all configuration values.
+
+        Raises:
+            ValueError: If any configuration value is invalid.
+        """
+        try:
+            self.fantia.validate()
+        except ValueError as e:
+            raise ValueError(f"Invalid fantia configuration: {e}") from e
+
+    def get_config_summary(self) -> dict[str, Any]:
+        """
+        Get a summary of current configuration.
+
+        Returns:
+            Dict[str, Any]: Configuration summary.
+        """
+        return {
+            "app": {
+                "jobs": self.app.jobs,
+                "user_data_dir": self.app.user_data_dir,
+                "working_dir": self.app.working_dir,
+            },
+            "fantia": {
+                "session_id": "***" if self.fantia.session_id else None,
+                "directory": self.fantia.directory,
+                "download_thumb": self.fantia.download_thumb,
+                "priorize_webp": self.fantia.priorize_webp,
+                "use_server_filenames": self.fantia.use_server_filenames,
+                "max_retries": self.fantia.max_retries,
+                "timeout_connect": self.fantia.timeout_connect,
+                "timeout_read": self.fantia.timeout_read,
+                "timeout_write": self.fantia.timeout_write,
+                "timeout_pool": self.fantia.timeout_pool,
+                "concurrent_downloads": self.fantia.concurrent_downloads,
+            },
+        }
+
     def load_env(self) -> None:
         """
         Load environment variables into the configuration instances.
 
         This function loads environment variables from a .env file and updates the
-        configuration instances with the loaded values.
+        configuration instances with the loaded values. Environment variables
+        have the highest priority and will override any configuration file values.
         """
         load_dotenv()
 
@@ -77,8 +232,7 @@ class ConfigRepository:
         )
         self.fantia.use_server_filenames = _parse_bool(
             getenv(
-                f"{ENV_PREFIX}FANTIA_USE_SERVER_FILENAMES",
-                str(self.fantia.use_server_filenames)
+                f"{ENV_PREFIX}FANTIA_USE_SERVER_FILENAMES", str(self.fantia.use_server_filenames)
             )
         )
 
@@ -102,8 +256,7 @@ class ConfigRepository:
         # 並列処理設定
         self.fantia.concurrent_downloads = int(
             getenv(
-                f"{ENV_PREFIX}FANTIA_CONCURRENT_DOWNLOADS",
-                str(self.fantia.concurrent_downloads)
+                f"{ENV_PREFIX}FANTIA_CONCURRENT_DOWNLOADS", str(self.fantia.concurrent_downloads)
             )
         )
 

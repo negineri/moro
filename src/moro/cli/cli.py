@@ -6,6 +6,7 @@ from logging.config import dictConfig
 import click
 
 from moro.cli._utils import AliasedGroup
+from moro.cli.config import config
 from moro.cli.example import example
 from moro.cli.fantia import fantia
 from moro.cli.pixiv import pixiv
@@ -26,10 +27,11 @@ def cli() -> None:
 
     # Configure logging
     config = injector.get(ConfigRepository)
-    config.load_env()
+    config.load_all()
     dictConfig(config.app.logging_config)
 
 
+cli.add_command(config)
 cli.add_command(example)
 cli.add_command(tracklist)
 cli.add_command(download)
