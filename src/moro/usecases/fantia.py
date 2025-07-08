@@ -3,8 +3,8 @@
 import os
 from dataclasses import dataclass
 from datetime import datetime as dt
+from logging import getLogger
 from time import sleep
-from venv import logger
 
 from click import echo
 from injector import inject
@@ -21,6 +21,8 @@ from moro.modules.fantia import (
     login_fantia,
     parse_post,
 )
+
+logger = getLogger(__name__)
 
 
 @inject

@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime as dt
 from email.utils import parsedate_to_datetime
 from os import makedirs
+from pathlib import Path
 from typing import Annotated, Any, Optional
 from urllib.parse import urljoin, urlparse
 
@@ -17,7 +18,6 @@ from bs4 import BeautifulSoup
 from injector import inject, singleton
 from pydantic import BaseModel, Field
 from selenium import webdriver
-from trio import Path
 
 logger = logging.getLogger(__name__)
 
