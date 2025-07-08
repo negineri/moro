@@ -49,7 +49,7 @@ This is a personal toolbox project (`moro`) that aggregates miscellaneous script
 
 - **CLI Framework**: Uses Click with custom AliasedGroup for command shortcuts
 - **Dependency Injection**: Uses injector library for configuration management
-- **Configuration**: YAML-based logging configuration loaded via ConfigRepo
+- **Configuration**: YAML-based logging configuration loaded via ConfigRepository
 - **Main Commands**:
   - `example` - Example/template command
   - `download` - URL downloader with ZIP compression and numbered prefix support

@@ -44,7 +44,7 @@ class FantiaDownloadPostUseCase:
             echo("Failed to login to Fantia. Please check your session ID.")
             return
 
-        post = parse_post(self.client, post_id, priorize_webp=self.config.fantia.priorize_webp)
+        post = parse_post(self.client, post_id)
         echo(f"Post ID: {post.id}")
         echo(f"Post Title: {post.title}")
         echo(f"Post Creator: {post.creator_name}")
@@ -93,7 +93,7 @@ class FantiaDownloadPostsByUserUseCase:
         post_ids = get_posts_by_user(self.client, user_id)
         for post_id in post_ids:
             echo(f"Downloading post ID: {post_id}")
-            post = parse_post(self.client, post_id, priorize_webp=self.config.fantia.priorize_webp)
+            post = parse_post(self.client, post_id)
 
             data_dir = os.path.join(
                 self.config.app.working_dir,

@@ -70,14 +70,45 @@ UNICODE_CONTROL_MAP = dict.fromkeys(range(32))
 class FantiaConfig:
     """Configuration for the Fantia client."""
 
+    # 認証設定
     session_id: Optional[str] = None
+
+    # ダウンロード設定
     directory: str = "downloads/fantia"
-    dump_metadata: bool = False
-    mark_incomplete_posts: bool = False
-    parse_for_external_links: bool = False
     download_thumb: bool = False
-    use_server_filenames: bool = False
     priorize_webp: bool = False
+    use_server_filenames: bool = False
+
+    # HTTP設定
+    max_retries: int = 5
+    timeout_connect: float = 10.0
+    timeout_read: float = 30.0
+    timeout_write: float = 10.0
+    timeout_pool: float = 5.0
+
+    # 並列処理設定
+    concurrent_downloads: int = 3
+
+    def validate(self) -> None:
+        """Validate configuration settings."""
+        if self.session_id and not self.session_id.strip():
+            raise ValueError("session_id cannot be empty string")
+
+        if self.max_retries < 0:
+            raise ValueError("max_retries must be non-negative")
+
+        if self.concurrent_downloads < 1:
+            raise ValueError("concurrent_downloads must be at least 1")
+
+        timeout_values = [
+            self.timeout_connect, self.timeout_read, self.timeout_write, self.timeout_pool
+        ]
+        if any(timeout < 0 for timeout in timeout_values):
+            raise ValueError("timeout values must be non-negative")
+
+    def __post_init__(self) -> None:
+        """Post-initialization validation."""
+        self.validate()
 
 
 class FantiaClient(httpx.Client):
@@ -85,10 +116,15 @@ class FantiaClient(httpx.Client):
 
     @inject
     def __init__(self, config: FantiaConfig) -> None:
-        timeout = httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=5.0)
+        timeout = httpx.Timeout(
+            connect=config.timeout_connect,
+            read=config.timeout_read,
+            write=config.timeout_write,
+            pool=config.timeout_pool
+        )
 
         # Transport configuration with retry logic
-        transport = httpx.HTTPTransport(retries=5, verify=True)
+        transport = httpx.HTTPTransport(retries=config.max_retries, verify=True)
 
         # Headers configuration
         headers = {
@@ -281,7 +317,7 @@ class FantiaPostData(BaseModel):
     thumbnail: Annotated[Optional[FantiaURL], Field(description="The URL of the post thumbnail")]
 
 
-def parse_post(client: FantiaClient, post_id: str, priorize_webp: bool) -> FantiaPostData:
+def parse_post(client: FantiaClient, post_id: str) -> FantiaPostData:
     """Parse a post and return its data."""
     if not _check_login(client):
         raise ValueError("Invalid session. Please verify your session cookie.")

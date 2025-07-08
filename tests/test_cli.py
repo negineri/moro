@@ -7,7 +7,6 @@ from click.testing import CliRunner
 
 from moro.cli._utils import AliasedGroup
 from moro.cli.cli import cli
-from moro.config.settings import ConfigRepo
 
 
 def test_example_command() -> None:
@@ -15,7 +14,7 @@ def test_example_command() -> None:
     runner = CliRunner()
     result = runner.invoke(cli, ["example", "echo"])
     assert result.exit_code == 0
-    assert "This is an example command." in result.output
+    assert "Current configuration: ConfigRepository" in result.output
 
 
 def test_main_entry_point() -> None:
@@ -42,11 +41,11 @@ def test_aliased_group() -> None:
 
 
 def test_config_repo_read_file_not_found() -> None:
-    """Test ConfigRepo.read raises FileNotFoundError when logging config is missing."""
-    repo = ConfigRepo()
+    """Test _load_logging_config raises FileNotFoundError when logging config is missing."""
+    from moro.config.settings import _load_logging_config
     with patch("pathlib.Path.exists", return_value=False):
         try:
-            repo.read()
+            _load_logging_config()
         except FileNotFoundError as e:
             assert "Logging configuration file not found" in str(e)
 

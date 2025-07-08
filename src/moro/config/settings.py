@@ -53,27 +53,64 @@ class ConfigRepository:
 
     def load_env(self) -> None:
         """
-        Load environment variables into the AppConfig instance.
+        Load environment variables into the configuration instances.
 
         This function loads environment variables from a .env file and updates the
-        AppConfig instance with the loaded values.
-
-        Args:
-            config (AppConfig): The AppConfig instance to update.
+        configuration instances with the loaded values.
         """
         load_dotenv()
+
+        # App設定
         self.app.jobs = int(getenv(f"{ENV_PREFIX}JOBS", self.app.jobs))
         self.app.logging_config = _load_logging_config()
         self.app.user_data_dir = getenv(f"{ENV_PREFIX}USER_DATA_DIR", self.app.user_data_dir)
         self.app.working_dir = getenv(f"{ENV_PREFIX}WORKING_DIR", self.app.working_dir)
-        self.fantia.priorize_webp = (
-            getenv(f"{ENV_PREFIX}FANTIA_PRIORIZE_WEBP", str(self.fantia.priorize_webp)).lower()
-            == "true"
+
+        # Fantia設定
+        self.fantia.session_id = getenv(f"{ENV_PREFIX}FANTIA_SESSION_ID", self.fantia.session_id)
+        self.fantia.directory = getenv(f"{ENV_PREFIX}FANTIA_DIRECTORY", self.fantia.directory)
+        self.fantia.download_thumb = _parse_bool(
+            getenv(f"{ENV_PREFIX}FANTIA_DOWNLOAD_THUMB", str(self.fantia.download_thumb))
         )
-        self.fantia.download_thumb = (
-            getenv(f"{ENV_PREFIX}FANTIA_DOWNLOAD_THUMB", str(self.fantia.download_thumb)).lower()
-            == "true"
+        self.fantia.priorize_webp = _parse_bool(
+            getenv(f"{ENV_PREFIX}FANTIA_PRIORIZE_WEBP", str(self.fantia.priorize_webp))
         )
+        self.fantia.use_server_filenames = _parse_bool(
+            getenv(
+                f"{ENV_PREFIX}FANTIA_USE_SERVER_FILENAMES",
+                str(self.fantia.use_server_filenames)
+            )
+        )
+
+        # HTTP設定
+        self.fantia.max_retries = int(
+            getenv(f"{ENV_PREFIX}FANTIA_MAX_RETRIES", str(self.fantia.max_retries))
+        )
+        self.fantia.timeout_connect = float(
+            getenv(f"{ENV_PREFIX}FANTIA_TIMEOUT_CONNECT", str(self.fantia.timeout_connect))
+        )
+        self.fantia.timeout_read = float(
+            getenv(f"{ENV_PREFIX}FANTIA_TIMEOUT_READ", str(self.fantia.timeout_read))
+        )
+        self.fantia.timeout_write = float(
+            getenv(f"{ENV_PREFIX}FANTIA_TIMEOUT_WRITE", str(self.fantia.timeout_write))
+        )
+        self.fantia.timeout_pool = float(
+            getenv(f"{ENV_PREFIX}FANTIA_TIMEOUT_POOL", str(self.fantia.timeout_pool))
+        )
+
+        # 並列処理設定
+        self.fantia.concurrent_downloads = int(
+            getenv(
+                f"{ENV_PREFIX}FANTIA_CONCURRENT_DOWNLOADS",
+                str(self.fantia.concurrent_downloads)
+            )
+        )
+
+
+def _parse_bool(value: str) -> bool:
+    """Parse string to boolean."""
+    return value.lower() in ("true", "1", "yes", "on")
 
 
 def _load_logging_config() -> Any:
