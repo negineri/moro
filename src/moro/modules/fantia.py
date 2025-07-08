@@ -87,7 +87,7 @@ class FantiaConfig(BaseModel):
     # 並列処理設定
     concurrent_downloads: int = Field(default=3, ge=1)
 
-    @field_validator('session_id')
+    @field_validator("session_id")
     @classmethod
     def validate_session_id(cls, v: Optional[str]) -> Optional[str]:
         """Validate session_id is not empty string."""
@@ -107,7 +107,7 @@ class FantiaClient(httpx.Client):
             connect=config.timeout_connect,
             read=config.timeout_read,
             write=config.timeout_write,
-            pool=config.timeout_pool
+            pool=config.timeout_pool,
         )
 
         # Transport configuration with retry logic
@@ -189,7 +189,7 @@ def sanitize_for_path(value: str, replace: str = " ") -> str:
 #             file.write("\n")
 
 
-def _check_login(client: FantiaClient) -> bool:
+def check_login(client: FantiaClient) -> bool:
     """Check if the session is valid by fetching the user data."""
     check_user = client.get(ME_API)
     if not (check_user.is_success or check_user.status_code == 304):
@@ -306,7 +306,7 @@ class FantiaPostData(BaseModel):
 
 def parse_post(client: FantiaClient, post_id: str) -> FantiaPostData:
     """Parse a post and return its data."""
-    if not _check_login(client):
+    if not check_login(client):
         raise ValueError("Invalid session. Please verify your session cookie.")
     logger.info(f"Parsing post {post_id}...")
     csrf_token = get_csrf_token(client, post_id)
@@ -508,7 +508,7 @@ def download_photo_gallery(
 
 def get_posts_by_user(client: FantiaClient, user_id: str, interval: float = 1) -> list[str]:
     """Get all post ids by a user."""
-    if not _check_login(client):
+    if not check_login(client):
         raise ValueError("Invalid session. Please verify your session cookie.")
     logger.info(f"Fetching posts for user {user_id}...\n")
 

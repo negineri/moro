@@ -1,26 +1,22 @@
 """Use Case for Downloading a Post from Fantia"""
 
-import os
 from dataclasses import dataclass
-from datetime import datetime as dt
 from logging import getLogger
 from time import sleep
 
 from click import echo
 from injector import inject
-from pathvalidate import sanitize_filename
 
 from moro.config.settings import ConfigRepository
 from moro.modules.fantia import (
     FantiaClient,
-    create_chrome_options,
-    download_file,
-    download_photo_gallery,
-    download_thumbnail,
+    FantiaPostData,
     get_posts_by_user,
-    login_fantia,
     parse_post,
 )
+from moro.services.fantia_auth import FantiaAuthService
+from moro.services.fantia_download import FantiaDownloadService
+from moro.services.fantia_file import FantiaFileService
 
 logger = getLogger(__name__)
 
@@ -32,6 +28,9 @@ class FantiaDownloadPostUseCase:
 
     config: ConfigRepository
     client: FantiaClient
+    auth_service: FantiaAuthService
+    download_service: FantiaDownloadService
+    file_service: FantiaFileService
 
     def execute(self, post_id: str) -> None:
         """
@@ -39,36 +38,36 @@ class FantiaDownloadPostUseCase:
 
         :param post_id: The ID of the post to download.
         """
-        chrome_userdata_dir = os.path.join(self.config.app.user_data_dir, "chrome_userdata")
-        if not login_fantia(self.client, create_chrome_options(chrome_userdata_dir)):
+        if not self.auth_service.ensure_authenticated():
             echo("Failed to login to Fantia. Please check your session ID.")
             return
 
         post = parse_post(self.client, post_id)
+        self._display_post_info(post)
+
+        # Create post directory
+        data_dir = self.file_service.create_post_directory(post)
+
+        # Save post comment if exists
+        if post.comment:
+            self.file_service.save_post_comment(data_dir, post.comment)
+
+        # Download photo galleries
+        for photo_gallery in post.contents_photo_gallery:
+            echo(f"Downloading photo gallery: {photo_gallery.title}")
+            content_dir = self.file_service.create_content_directory(
+                data_dir, photo_gallery.id, photo_gallery.title
+            )
+            self.download_service.download_photo_gallery(content_dir, photo_gallery)
+
+    def _display_post_info(self, post: FantiaPostData) -> None:
+        """Display post information."""
         echo(f"Post ID: {post.id}")
         echo(f"Post Title: {post.title}")
         echo(f"Post Creator: {post.creator_name}")
         echo(f"Post Contents: {len(post.contents)}")
         echo(f"Post Posted At: {post.posted_at}")
         echo(f"Post Converted At: {post.converted_at}")
-
-        data_dir = os.path.join(
-            self.config.app.working_dir,
-            "downloads",
-            "fantia",
-            post.creator_id,
-            f"{post.id}_{post.title}_{post.converted_at}",
-        )
-        os.makedirs(data_dir, exist_ok=True)
-        if post.comment:
-            with open(os.path.join(data_dir, "comment.txt"), mode="w") as f:
-                f.write(post.comment)
-
-        for photo_gallery in post.contents_photo_gallery:
-            echo(f"Downloading photo gallery: {photo_gallery.title}")
-            content_dir = os.path.join(data_dir, f"{photo_gallery.id}_{photo_gallery.title}")
-            os.makedirs(content_dir, exist_ok=True)
-            download_photo_gallery(self.client, content_dir, photo_gallery)
 
 
 @inject
@@ -78,6 +77,9 @@ class FantiaDownloadPostsByUserUseCase:
 
     config: ConfigRepository
     client: FantiaClient
+    auth_service: FantiaAuthService
+    download_service: FantiaDownloadService
+    file_service: FantiaFileService
 
     def execute(self, user_id: str) -> None:
         """
@@ -85,69 +87,52 @@ class FantiaDownloadPostsByUserUseCase:
 
         :param user_id: The ID of the user whose posts to download.
         """
-        chrome_userdata_dir = os.path.join(self.config.app.user_data_dir, "chrome_userdata")
-        if not login_fantia(self.client, create_chrome_options(chrome_userdata_dir)):
+        if not self.auth_service.ensure_authenticated():
             echo("Failed to login to Fantia. Please check your session ID.")
             return
 
         post_ids = get_posts_by_user(self.client, user_id)
         for post_id in post_ids:
             echo(f"Downloading post ID: {post_id}")
-            post = parse_post(self.client, post_id)
-
-            data_dir = os.path.join(
-                self.config.app.working_dir,
-                "downloads",
-                "fantia",
-                post.creator_id,
-                sanitize_filename(
-                    f"{post.id}_{post.title}_{dt.fromtimestamp(post.converted_at).strftime('%Y%m%d%H%M')}"
-                ),
-            )
-            os.makedirs(data_dir, exist_ok=True)
-            if post.comment:
-                with open(os.path.join(data_dir, "comment.txt"), mode="w") as f:
-                    f.write(post.comment)
-            if self.config.fantia.download_thumb and post.thumbnail:
-                logger.info(f"Downloading thumbnail: {post.thumbnail}")
-                download_thumbnail(self.client, data_dir, post)
-
-            for photo_gallery in post.contents_photo_gallery:
-                echo(f"Downloading photo gallery: {photo_gallery.title}")
-                content_dir = os.path.join(
-                    data_dir, sanitize_filename(f"{photo_gallery.id}_{photo_gallery.title}")
-                )
-                os.makedirs(content_dir, exist_ok=True)
-                download_photo_gallery(self.client, content_dir, photo_gallery)
-
-            for file in post.contents_files:
-                echo(f"Downloading file: {file.title}")
-                content_dir = os.path.join(data_dir, sanitize_filename(f"{file.id}_{file.title}"))
-                os.makedirs(content_dir, exist_ok=True)
-                download_file(self.client, content_dir, file)
-
-            for text in post.contents_text:
-                echo(f"Saving text content: {text.title}")
-                if not text.comment:
-                    logger.warning(f"Text content {text.id} has no comment.")
-                    continue
-                content_dir = os.path.join(data_dir, sanitize_filename(f"{text.id}_{text.title}"))
-                os.makedirs(content_dir, exist_ok=True)
-                with open(os.path.join(content_dir, "content.txt"), mode="w") as f:
-                    f.write(text.comment)
-
-            for product in post.contents_products:
-                echo(f"Saving product content: {product.title}")
-                if not product.comment:
-                    logger.warning(f"Product content {product.id} has no comment.")
-                    continue
-                content_dir = os.path.join(
-                    data_dir, sanitize_filename(f"{product.id}_{product.title}")
-                )
-                os.makedirs(content_dir, exist_ok=True)
-                with open(os.path.join(content_dir, "content.txt"), mode="w") as f:
-                    f.write(product.comment)
-                with open(os.path.join(content_dir, "url.txt"), mode="w") as f:
-                    f.write(product.url)
-
+            self._download_single_post(post_id)
             sleep(1)
+
+    def _download_single_post(self, post_id: str) -> None:
+        """Download a single post with all its content."""
+        post = parse_post(self.client, post_id)
+
+        # Create post directory
+        data_dir = self.file_service.create_post_directory(post)
+
+        # Save post comment if exists
+        if post.comment:
+            self.file_service.save_post_comment(data_dir, post.comment)
+
+        # Download thumbnail if enabled
+        if self.config.fantia.download_thumb and post.thumbnail:
+            logger.info(f"Downloading thumbnail: {post.thumbnail}")
+            self.download_service.download_thumbnail(data_dir, post)
+
+        # Download photo galleries
+        for photo_gallery in post.contents_photo_gallery:
+            echo(f"Downloading photo gallery: {photo_gallery.title}")
+            content_dir = self.file_service.create_content_directory(
+                data_dir, photo_gallery.id, photo_gallery.title
+            )
+            self.download_service.download_photo_gallery(content_dir, photo_gallery)
+
+        # Download files
+        for file in post.contents_files:
+            echo(f"Downloading file: {file.title}")
+            content_dir = self.file_service.create_content_directory(data_dir, file.id, file.title)
+            self.download_service.download_file(content_dir, file)
+
+        # Save text content
+        for text in post.contents_text:
+            echo(f"Saving text content: {text.title}")
+            self.file_service.save_text_content(data_dir, text)
+
+        # Save product content
+        for product in post.contents_products:
+            echo(f"Saving product content: {product.title}")
+            self.file_service.save_product_content(data_dir, product)
