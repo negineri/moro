@@ -5,7 +5,6 @@ import logging
 import os
 import re
 import time
-from dataclasses import dataclass
 from datetime import datetime as dt
 from email.utils import parsedate_to_datetime
 from os import makedirs
@@ -16,7 +15,7 @@ from urllib.parse import urljoin, urlparse
 import httpx
 from bs4 import BeautifulSoup
 from injector import inject, singleton
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from selenium import webdriver
 
 logger = logging.getLogger(__name__)
@@ -66,49 +65,37 @@ UNICODE_CONTROL_MAP = dict.fromkeys(range(32))
 
 
 @singleton
-@dataclass
-class FantiaConfig:
+class FantiaConfig(BaseModel):
     """Configuration for the Fantia client."""
 
     # 認証設定
-    session_id: Optional[str] = None
+    session_id: Optional[str] = Field(default=None, min_length=1)
 
     # ダウンロード設定
-    directory: str = "downloads/fantia"
-    download_thumb: bool = False
-    priorize_webp: bool = False
-    use_server_filenames: bool = False
+    directory: str = Field(default="downloads/fantia")
+    download_thumb: bool = Field(default=False)
+    priorize_webp: bool = Field(default=False)
+    use_server_filenames: bool = Field(default=False)
 
     # HTTP設定
-    max_retries: int = 5
-    timeout_connect: float = 10.0
-    timeout_read: float = 30.0
-    timeout_write: float = 10.0
-    timeout_pool: float = 5.0
+    max_retries: int = Field(default=5, ge=0)
+    timeout_connect: float = Field(default=10.0, ge=0)
+    timeout_read: float = Field(default=30.0, ge=0)
+    timeout_write: float = Field(default=10.0, ge=0)
+    timeout_pool: float = Field(default=5.0, ge=0)
 
     # 並列処理設定
-    concurrent_downloads: int = 3
+    concurrent_downloads: int = Field(default=3, ge=1)
 
-    def validate(self) -> None:
-        """Validate configuration settings."""
-        if self.session_id and not self.session_id.strip():
+    @field_validator('session_id')
+    @classmethod
+    def validate_session_id(cls, v: Optional[str]) -> Optional[str]:
+        """Validate session_id is not empty string."""
+        if v is not None and not v.strip():
             raise ValueError("session_id cannot be empty string")
+        return v
 
-        if self.max_retries < 0:
-            raise ValueError("max_retries must be non-negative")
-
-        if self.concurrent_downloads < 1:
-            raise ValueError("concurrent_downloads must be at least 1")
-
-        timeout_values = [
-            self.timeout_connect, self.timeout_read, self.timeout_write, self.timeout_pool
-        ]
-        if any(timeout < 0 for timeout in timeout_values):
-            raise ValueError("timeout values must be non-negative")
-
-    def __post_init__(self) -> None:
-        """Post-initialization validation."""
-        self.validate()
+    model_config = {"extra": "forbid"}
 
 
 class FantiaClient(httpx.Client):

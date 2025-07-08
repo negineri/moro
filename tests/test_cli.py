@@ -14,7 +14,8 @@ def test_example_command() -> None:
     runner = CliRunner()
     result = runner.invoke(cli, ["example", "echo"])
     assert result.exit_code == 0
-    assert "Current configuration: ConfigRepository" in result.output
+    assert "Current configuration: app=AppConfig" in result.output
+    assert "fantia=FantiaConfig" in result.output
 
 
 def test_main_entry_point() -> None:
