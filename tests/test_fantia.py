@@ -156,6 +156,32 @@ class TestCheckLogin:
         assert "Network error" in str(exc_info.value)
         assert isinstance(exc_info.value, httpx.RequestError)
 
+    def test_check_login_timeout_exception(self) -> None:
+        """ログインチェックタイムアウト例外テスト."""
+        mock_client = MagicMock()
+        mock_client.get.side_effect = httpx.TimeoutException("Request timeout")
+
+        # タイムアウト例外が発生することを確認
+        with pytest.raises(httpx.TimeoutException, match="Request timeout") as exc_info:
+            check_login(mock_client)
+
+        # 例外の詳細情報を検証
+        assert "timeout" in str(exc_info.value).lower()
+        assert isinstance(exc_info.value, httpx.TimeoutException)
+
+    def test_check_login_connection_error(self) -> None:
+        """ログインチェック接続エラーテスト."""
+        mock_client = MagicMock()
+        mock_client.get.side_effect = httpx.ConnectError("Connection refused")
+
+        # 接続エラーが発生することを確認
+        with pytest.raises(httpx.ConnectError, match="Connection refused") as exc_info:
+            check_login(mock_client)
+
+        # 例外の詳細情報を検証
+        assert isinstance(exc_info.value, httpx.ConnectError)
+        assert "refused" in str(exc_info.value).lower()
+
 
 class TestFetchPostData:
     """_fetch_post_data 関数のテスト."""
@@ -199,6 +225,51 @@ class TestFetchPostData:
         mock_check_login.assert_called_once_with(mock_client)
         # ログイン失敗時はデータ取得が呼び出されないことを検証
         mock_client.get.assert_not_called()
+
+    @patch("moro.modules.fantia.check_login")
+    @patch("moro.modules.fantia.get_csrf_token")
+    def test_fetch_post_data_http_error(
+        self, mock_get_csrf: MagicMock, mock_check_login: MagicMock
+    ) -> None:
+        """HTTP エラーテスト."""
+        mock_client = MagicMock()
+        mock_check_login.return_value = True
+        mock_get_csrf.return_value = "test_csrf_token"
+
+        # HTTP エラーをシミュレート
+        mock_client.get.side_effect = httpx.HTTPStatusError(
+            "Not Found", request=MagicMock(), response=MagicMock(status_code=404)
+        )
+
+        # HTTP エラーが発生することを確認
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            _fetch_post_data(mock_client, "12345")
+
+        # 例外の詳細情報を検証
+        assert exc_info.value.response.status_code == 404
+        assert isinstance(exc_info.value, httpx.HTTPStatusError)
+
+    @patch("moro.modules.fantia.check_login")
+    @patch("moro.modules.fantia.get_csrf_token")
+    def test_fetch_post_data_json_decode_error(
+        self, mock_get_csrf: MagicMock, mock_check_login: MagicMock
+    ) -> None:
+        """JSON デコードエラーテスト."""
+        mock_client = MagicMock()
+        mock_check_login.return_value = True
+        mock_get_csrf.return_value = "test_csrf_token"
+
+        # 不正なJSONレスポンスをモック
+        mock_response = MagicMock()
+        mock_response.text = "invalid json content"
+        mock_client.get.return_value = mock_response
+
+        # JSON デコードエラーが発生することを確認
+        with pytest.raises((ValueError, TypeError)) as exc_info:
+            _fetch_post_data(mock_client, "12345")
+
+        # 例外がJSONパース関連であることを検証
+        assert isinstance(exc_info.value, (ValueError, TypeError))
 
 
 class TestExtractPostMetadata:
