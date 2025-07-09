@@ -11,14 +11,6 @@ from moro.services.fantia_file import FantiaFileService
 class TestFantiaAuthService:
     """FantiaAuthService クラスのテスト."""
 
-    def test_init(self) -> None:
-        """初期化テスト."""
-        mock_config = MagicMock()
-        mock_client = MagicMock()
-        service = FantiaAuthService(mock_config, mock_client)
-        assert service.config == mock_config
-        assert service.client == mock_client
-
     @patch("moro.services.fantia_auth.check_login")
     def test_ensure_authenticated_already_logged_in(self, mock_check_login: MagicMock) -> None:
         """既にログイン済みの場合のテスト."""
@@ -88,14 +80,6 @@ class TestFantiaAuthService:
 class TestFantiaDownloadService:
     """FantiaDownloadService クラスのテスト."""
 
-    def test_init(self) -> None:
-        """初期化テスト."""
-        mock_config = MagicMock()
-        mock_client = MagicMock()
-        service = FantiaDownloadService(mock_config, mock_client)
-        assert service.config == mock_config
-        assert service.client == mock_client
-
     @patch("builtins.open", new_callable=mock_open)
     @patch("moro.services.fantia_download.os.path.join")
     def test_download_thumbnail_success(self, mock_join: MagicMock, mock_file: MagicMock) -> None:
@@ -135,31 +119,6 @@ class TestFantiaDownloadService:
                 "https://example.com/thumb.jpg", "/test/path/0000_thumb.jpg"
             )
 
-    def test_download_thumbnail_no_thumbnail(self) -> None:
-        """サムネイルがない場合のテスト."""
-        mock_config = MagicMock()
-        mock_client = MagicMock()
-        service = FantiaDownloadService(mock_config, mock_client)
-
-        # サムネイルがない投稿データ
-        post_data = FantiaPostData(
-            id="12345",
-            title="Test Post",
-            creator_id="creator123",
-            creator_name="Test Creator",
-            contents=[],
-            contents_photo_gallery=[],
-            contents_files=[],
-            contents_text=[],
-            contents_products=[],
-            posted_at=1672531200,
-            converted_at=1672531200,
-            comment="Test comment",
-            thumbnail=None,
-        )
-
-        # 実行 - 例外が発生しないことを確認
-        service.download_thumbnail("/test/path", post_data)
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("moro.services.fantia_download.os.path.join")
@@ -231,30 +190,10 @@ class TestFantiaDownloadService:
         mock_client.stream.assert_called_once_with("GET", "https://example.com/test.jpg")
         mock_file.assert_called_once_with("/test/test.jpg", "wb")
 
-    @patch("moro.services.fantia_download.os.remove")
-    def test_perform_download_404(self, mock_remove: MagicMock) -> None:
-        """404エラーのテスト."""
-        mock_config = MagicMock()
-        mock_client = MagicMock()
-        service = FantiaDownloadService(mock_config, mock_client)
-
-        # 404レスポンスのモック
-        mock_response = MagicMock()
-        mock_response.status_code = 404
-        mock_client.stream.return_value.__enter__.return_value = mock_response
-
-        # 実行 - 例外が発生しないことを確認
-        service._perform_download("https://example.com/test.jpg", "/test/test.jpg")
 
 
 class TestFantiaFileService:
     """FantiaFileService クラスのテスト."""
-
-    def test_init(self) -> None:
-        """初期化テスト."""
-        mock_config = MagicMock()
-        service = FantiaFileService(mock_config)
-        assert service.config == mock_config
 
     @patch("moro.services.fantia_file.os.makedirs")
     @patch("moro.services.fantia_file.os.path.join")

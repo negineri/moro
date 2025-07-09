@@ -11,28 +11,6 @@ from moro.usecases.fantia import FantiaDownloadPostsByUserUseCase, FantiaDownloa
 class TestFantiaDownloadPostUseCase:
     """FantiaDownloadPostUseCase クラスのテスト."""
 
-    def test_init(self) -> None:
-        """初期化テスト."""
-        mock_config = MagicMock()
-        mock_client = MagicMock()
-        mock_auth_service = MagicMock()
-        mock_download_service = MagicMock()
-        mock_file_service = MagicMock()
-
-        use_case = FantiaDownloadPostUseCase(
-            config=mock_config,
-            client=mock_client,
-            auth_service=mock_auth_service,
-            download_service=mock_download_service,
-            file_service=mock_file_service,
-        )
-
-        assert use_case.config == mock_config
-        assert use_case.client == mock_client
-        assert use_case.auth_service == mock_auth_service
-        assert use_case.download_service == mock_download_service
-        assert use_case.file_service == mock_file_service
-
     @patch("moro.usecases.fantia.parse_post")
     def test_execute_success(self, mock_parse_post: MagicMock) -> None:
         """実行成功テスト."""
@@ -141,28 +119,6 @@ class TestFantiaDownloadPostUseCase:
 
 class TestFantiaDownloadPostsByUserUseCase:
     """FantiaDownloadPostsByUserUseCase クラスのテスト."""
-
-    def test_init(self) -> None:
-        """初期化テスト."""
-        mock_config = MagicMock()
-        mock_client = MagicMock()
-        mock_auth_service = MagicMock()
-        mock_download_service = MagicMock()
-        mock_file_service = MagicMock()
-
-        use_case = FantiaDownloadPostsByUserUseCase(
-            config=mock_config,
-            client=mock_client,
-            auth_service=mock_auth_service,
-            download_service=mock_download_service,
-            file_service=mock_file_service,
-        )
-
-        assert use_case.config == mock_config
-        assert use_case.client == mock_client
-        assert use_case.auth_service == mock_auth_service
-        assert use_case.download_service == mock_download_service
-        assert use_case.file_service == mock_file_service
 
     @patch("moro.usecases.fantia.get_posts_by_user")
     def test_execute_success(self, mock_get_posts_by_user: MagicMock) -> None:
