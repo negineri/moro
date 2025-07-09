@@ -12,11 +12,12 @@ class TestFantiaAuthService:
     """FantiaAuthService クラスのテスト."""
 
     @patch("moro.services.fantia_auth.check_login")
-    def test_ensure_authenticated_already_logged_in(self, mock_check_login: MagicMock) -> None:
+    def test_ensure_authenticated_already_logged_in(
+        self, mock_check_login: MagicMock, mock_fantia_client, fantia_test_data
+    ) -> None:
         """既にログイン済みの場合のテスト."""
-        mock_config = MagicMock()
-        mock_client = MagicMock()
-        service = FantiaAuthService(mock_config, mock_client)
+        mock_config = fantia_test_data.create_fantia_config()
+        service = FantiaAuthService(mock_config, mock_fantia_client)
 
         # 既にログイン済み
         mock_check_login.return_value = True
@@ -24,19 +25,23 @@ class TestFantiaAuthService:
         result = service.ensure_authenticated()
 
         assert result is True
-        mock_check_login.assert_called_once_with(mock_client)
+        mock_check_login.assert_called_once_with(mock_fantia_client)
 
     @patch("moro.services.fantia_auth.check_login")
     @patch("moro.services.fantia_auth.webdriver.Chrome")
     @patch("moro.services.fantia_auth.os.makedirs")
     def test_ensure_authenticated_login_required(
-        self, mock_makedirs: MagicMock, mock_chrome: MagicMock, mock_check_login: MagicMock
+        self,
+        mock_makedirs: MagicMock,
+        mock_chrome: MagicMock,
+        mock_check_login: MagicMock,
+        mock_fantia_client,
+        fantia_test_data,
     ) -> None:
         """ログインが必要な場合のテスト."""
         mock_config = MagicMock()
         mock_config.app.user_data_dir = "/test/userdata"
-        mock_client = MagicMock()
-        service = FantiaAuthService(mock_config, mock_client)
+        service = FantiaAuthService(mock_config, mock_fantia_client)
 
         # 最初はログインしていない
         mock_check_login.return_value = False
@@ -57,12 +62,13 @@ class TestFantiaAuthService:
         mock_makedirs.assert_called_once_with("/test/userdata/chrome_userdata", exist_ok=True)
 
     @patch("moro.services.fantia_auth.check_login")
-    def test_ensure_authenticated_login_failed(self, mock_check_login: MagicMock) -> None:
+    def test_ensure_authenticated_login_failed(
+        self, mock_check_login: MagicMock, mock_fantia_client, fantia_test_data
+    ) -> None:
         """ログイン失敗のテスト."""
         mock_config = MagicMock()
         mock_config.app.user_data_dir = "/test/userdata"
-        mock_client = MagicMock()
-        service = FantiaAuthService(mock_config, mock_client)
+        service = FantiaAuthService(mock_config, mock_fantia_client)
 
         # ログインしていない
         mock_check_login.return_value = False
@@ -82,32 +88,23 @@ class TestFantiaDownloadService:
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("moro.services.fantia_download.os.path.join")
-    def test_download_thumbnail_success(self, mock_join: MagicMock, mock_file: MagicMock) -> None:
+    def test_download_thumbnail_success(
+        self, mock_join: MagicMock, mock_file: MagicMock, mock_fantia_client, fantia_test_data
+    ) -> None:
         """サムネイルダウンロード成功テスト."""
-        mock_config = MagicMock()
-        mock_client = MagicMock()
-        service = FantiaDownloadService(mock_config, mock_client)
+        mock_config = fantia_test_data.create_fantia_config()
+        service = FantiaDownloadService(mock_config, mock_fantia_client)
 
         # 投稿データのモック
-        post_data = FantiaPostData(
-            id="12345",
-            title="Test Post",
-            creator_id="creator123",
-            creator_name="Test Creator",
-            contents=[],
-            contents_photo_gallery=[],
-            contents_files=[],
-            contents_text=[],
-            contents_products=[],
-            posted_at=1672531200,
-            converted_at=1672531200,
-            comment="Test comment",
-            thumbnail=FantiaURL(url="https://example.com/thumb.jpg", ext=".jpg"),
+        post_data = fantia_test_data.create_fantia_post_data(
+            thumbnail=fantia_test_data.create_fantia_url(
+                url="https://example.com/thumb.jpg", ext=".jpg"
+            )
         )
 
         # モックの設定
         mock_join.return_value = "/test/path/0000_thumb.jpg"
-        mock_client.stream.return_value.__enter__.return_value = MagicMock(
+        mock_fantia_client.stream.return_value.__enter__.return_value = MagicMock(
             status_code=200,
             headers={"Content-Length": "1024"},
             iter_bytes=MagicMock(return_value=[b"test"]),
@@ -118,7 +115,6 @@ class TestFantiaDownloadService:
             mock_perform.assert_called_once_with(
                 "https://example.com/thumb.jpg", "/test/path/0000_thumb.jpg"
             )
-
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("moro.services.fantia_download.os.path.join")
@@ -189,7 +185,6 @@ class TestFantiaDownloadService:
         # 検証
         mock_client.stream.assert_called_once_with("GET", "https://example.com/test.jpg")
         mock_file.assert_called_once_with("/test/test.jpg", "wb")
-
 
 
 class TestFantiaFileService:

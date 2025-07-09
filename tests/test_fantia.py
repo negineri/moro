@@ -36,8 +36,6 @@ class TestFantiaConfig:
         assert config.timeout_pool == 5.0
         assert config.concurrent_downloads == 3
 
-
-
     def test_config_validation(self) -> None:
         """設定値のバリデーションテスト."""
         # 負の値はバリデーションエラーになる
@@ -64,12 +62,6 @@ class TestFantiaClient:
         assert client.timeout.read == config.timeout_read
         assert client.timeout.write == config.timeout_write
         assert client.timeout.pool == config.timeout_pool
-
-
-
-
-
-
 
 
 class TestCheckLogin:
@@ -112,8 +104,6 @@ class TestCheckLogin:
         # 例外が発生することを確認
         with pytest.raises(httpx.RequestError):
             check_login(mock_client)
-
-
 
 
 class TestFetchPostData:
@@ -173,17 +163,12 @@ class TestExtractPostMetadata:
         assert result["creator_id"] == 456
         assert result["comment"] == "Test comment"
 
-    def test_extract_post_metadata_no_converted_at(self) -> None:
+    def test_extract_post_metadata_no_converted_at(self, fantia_test_data) -> None:
         """converted_atがない場合のテスト."""
-        post_json = {
-            "id": 12345,
-            "title": "Test Post",
-            "fanclub": {"creator_name": "Test Creator", "id": 456},
-            "post_contents": [],
-            "posted_at": "Wed, 01 Jan 2023 00:00:00 GMT",
-            "converted_at": None,
-            "comment": None,
-        }
+        post_json = fantia_test_data.create_post_json_data(
+            converted_at=None,
+            comment=None,
+        )
 
         result = _extract_post_metadata(post_json)
 
@@ -193,21 +178,27 @@ class TestExtractPostMetadata:
 class TestValidatePostType:
     """_validate_post_type 関数のテスト."""
 
-
-    def test_validate_post_type_blog_post(self) -> None:
+    def test_validate_post_type_blog_post(self, fantia_test_data) -> None:
         """ブログ投稿のテスト."""
-        post_json = {"is_blog": True}
+        post_json = fantia_test_data.create_post_json_data(is_blog=True)
 
         with pytest.raises(NotImplementedError, match="Blog posts are not supported"):
-            _validate_post_type(post_json, "12345")
+            _validate_post_type(post_json, fantia_test_data.DEFAULT_POST_ID)
+
+    def test_validate_post_type_normal_post(self, fantia_test_data) -> None:
+        """通常の投稿のテスト."""
+        post_json = fantia_test_data.create_post_json_data(is_blog=False)
+
+        # 例外が発生しないことを確認
+        _validate_post_type(post_json, fantia_test_data.DEFAULT_POST_ID)
 
 
 class TestParsePostThumbnail:
     """_parse_post_thumbnail 関数のテスト."""
 
-    def test_parse_post_thumbnail_success(self) -> None:
+    def test_parse_post_thumbnail_success(self, fantia_test_data) -> None:
         """サムネイル解析成功テスト."""
-        post_json = {"thumb": {"original": "https://example.com/thumb.jpg"}}
+        post_json = fantia_test_data.create_post_json_data()
 
         result = _parse_post_thumbnail(post_json)
 
@@ -215,26 +206,96 @@ class TestParsePostThumbnail:
         assert result.url == "https://example.com/thumb.jpg"
         assert result.ext == ".jpg"
 
+    def test_parse_post_thumbnail_no_thumb(self, fantia_test_data) -> None:
+        """サムネイルがない場合のテスト."""
+        post_json = fantia_test_data.create_post_json_data()
+        del post_json["thumb"]
+
+        result = _parse_post_thumbnail(post_json)
+
+        assert result is None
 
 
 class TestParsePostContents:
     """_parse_post_contents 関数のテスト."""
 
-
-    def test_parse_post_contents_invisible(self) -> None:
+    def test_parse_post_contents_invisible(self, fantia_test_data) -> None:
         """非表示コンテンツのテスト."""
         post_contents = [{"id": 1, "category": "text", "visible_status": "invisible"}]
 
-        gallery, files, text, products = _parse_post_contents(post_contents, "12345")
+        gallery, files, text, products = _parse_post_contents(
+            post_contents, fantia_test_data.DEFAULT_POST_ID
+        )
 
         assert gallery == []
         assert files == []
         assert text == []
         assert products == []
 
-    def test_parse_post_contents_unsupported_category(self) -> None:
+    def test_parse_post_contents_unsupported_category(self, fantia_test_data) -> None:
         """サポートされていないカテゴリのテスト."""
         post_contents = [{"id": 1, "category": "unsupported", "visible_status": "visible"}]
 
         with pytest.raises(NotImplementedError, match="not supported yet"):
-            _parse_post_contents(post_contents, "12345")
+            _parse_post_contents(post_contents, fantia_test_data.DEFAULT_POST_ID)
+
+    def test_parse_post_contents_empty(self, fantia_test_data) -> None:
+        """空のコンテンツのテスト."""
+        post_contents = []
+
+        gallery, files, text, products = _parse_post_contents(
+            post_contents, fantia_test_data.DEFAULT_POST_ID
+        )
+
+        assert gallery == []
+        assert files == []
+        assert text == []
+        assert products == []
+
+    def test_parse_post_contents_valid_categories(self, fantia_test_data) -> None:
+        """有効なカテゴリのテスト."""
+        post_contents = [
+            {
+                "id": 1,
+                "category": "photo_gallery",
+                "visible_status": "visible",
+                "title": "Gallery 1",
+                "comment": "Gallery comment",
+                "post_content_photos": [
+                    {"url": {"original": "https://example.com/1.jpg"}},
+                    {"url": {"original": "https://example.com/2.jpg"}},
+                ],
+            },
+            {
+                "id": 2,
+                "category": "file",
+                "visible_status": "visible",
+                "title": "File 1",
+                "comment": "File comment",
+                "download_uri": "/files/file.pdf",
+                "filename": "file.pdf",
+            },
+            {
+                "id": 3,
+                "category": "text",
+                "visible_status": "visible",
+                "title": "Text 1",
+                "comment": "Text comment",
+            },
+        ]
+
+        gallery, files, text, products = _parse_post_contents(
+            post_contents, fantia_test_data.DEFAULT_POST_ID
+        )
+
+        assert len(gallery) == 1
+        assert len(files) == 1
+        assert len(text) == 1
+        assert len(products) == 0
+
+        assert gallery[0].id == "1"
+        assert gallery[0].title == "Gallery 1"
+        assert files[0].id == "2"
+        assert files[0].title == "File 1"
+        assert text[0].id == "3"
+        assert text[0].title == "Text 1"
