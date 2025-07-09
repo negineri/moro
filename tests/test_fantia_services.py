@@ -1,9 +1,12 @@
 """fantia services のテスト."""
 
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
-from conftest import FantiaTestDataFactory
+
+if TYPE_CHECKING:
+    from conftest import FantiaTestDataFactory
 
 from moro.config.settings import ConfigRepository
 from moro.modules.fantia import (
@@ -16,6 +19,12 @@ from moro.services.fantia_file import FantiaFileService
 
 class TestFantiaAuthService:
     """FantiaAuthService クラスのテスト."""
+
+    def _create_auth_service(self, mock_client: MagicMock) -> FantiaAuthService:
+        """認証サービスのテスト用インスタンスを作成."""
+        mock_config = MagicMock()
+        mock_config.app.user_data_dir = "/test/userdata"
+        return FantiaAuthService(mock_config, mock_client)
 
     @patch("moro.services.fantia_auth.check_login")
     def test_ensure_authenticated_already_logged_in(
@@ -36,40 +45,24 @@ class TestFantiaAuthService:
         mock_check_login.assert_called_once_with(mock_fantia_client)
 
     @patch("moro.services.fantia_auth.check_login")
-    @patch("moro.services.fantia_auth.webdriver.Chrome")
-    @patch("moro.services.fantia_auth.os.makedirs")
     def test_ensure_authenticated_login_required(
         self,
-        mock_makedirs: MagicMock,
-        mock_chrome: MagicMock,
         mock_check_login: MagicMock,
         mock_fantia_client: MagicMock,
-        fantia_test_data: FantiaTestDataFactory,
+        fantia_test_data: "FantiaTestDataFactory",
     ) -> None:
         """ログインが必要な場合のテスト."""
-        mock_config = MagicMock()
-        mock_config.app.user_data_dir = "/test/userdata"
-        service = FantiaAuthService(mock_config, mock_fantia_client)
+        service = self._create_auth_service(mock_fantia_client)
 
         # 最初はログインしていない
         mock_check_login.return_value = False
 
-        # WebDriverのモック
-        mock_driver = MagicMock()
-        mock_chrome.return_value.__enter__.return_value = mock_driver
-        mock_driver.current_url = "https://fantia.jp/"
-
-        # クッキーのモック
-        mock_driver.get_cookies.return_value = [
-            {"name": "_session_id", "value": "test_session", "domain": "fantia.jp"}
-        ]
-
-        with patch.object(service, "_login_with_selenium") as mock_login_selenium:
-            mock_login_selenium.return_value = True
+        # _login_with_seleniumをモック化して成功させる
+        with patch.object(service, "_login_with_selenium", return_value=True) as mock_login:
             result = service.ensure_authenticated()
 
             assert result is True
-            mock_login_selenium.assert_called_once()
+            mock_login.assert_called_once()
 
     @patch("moro.services.fantia_auth.check_login")
     def test_ensure_authenticated_login_failed(
@@ -79,21 +72,17 @@ class TestFantiaAuthService:
         fantia_config: FantiaConfig,
     ) -> None:
         """ログイン失敗のテスト."""
-        mock_config = MagicMock()
-        mock_config.app.user_data_dir = "/test/userdata"
-        service = FantiaAuthService(mock_config, mock_fantia_client)
+        service = self._create_auth_service(mock_fantia_client)
 
         # ログインしていない
         mock_check_login.return_value = False
 
         # _login_with_seleniumが失敗するようにモック
-        with patch.object(service, "_login_with_selenium") as mock_login_selenium:
-            mock_login_selenium.return_value = False
-
+        with patch.object(service, "_login_with_selenium", return_value=False) as mock_login:
             result = service.ensure_authenticated()
 
             assert result is False
-            mock_login_selenium.assert_called_once()
+            mock_login.assert_called_once()
             mock_check_login.assert_called_once_with(mock_fantia_client)
 
 
@@ -106,7 +95,7 @@ class TestFantiaDownloadService:
         mock_file: MagicMock,
         mock_fantia_client: MagicMock,
         config_repository: ConfigRepository,
-        fantia_test_data: FantiaTestDataFactory,
+        fantia_test_data: "FantiaTestDataFactory",
     ) -> None:
         """サムネイルダウンロード成功テスト."""
         service = FantiaDownloadService(config_repository, mock_fantia_client)
@@ -139,7 +128,7 @@ class TestFantiaDownloadService:
         mock_file: MagicMock,
         mock_fantia_client: MagicMock,
         config_repository: ConfigRepository,
-        fantia_test_data: FantiaTestDataFactory,
+        fantia_test_data: "FantiaTestDataFactory",
     ) -> None:
         """フォトギャラリーダウンロードテスト."""
         service = FantiaDownloadService(config_repository, mock_fantia_client)
@@ -181,7 +170,7 @@ class TestFantiaDownloadService:
         mock_file: MagicMock,
         mock_fantia_client: MagicMock,
         config_repository: ConfigRepository,
-        fantia_test_data: FantiaTestDataFactory,
+        fantia_test_data: "FantiaTestDataFactory",
     ) -> None:
         """ファイルダウンロードテスト."""
         service = FantiaDownloadService(config_repository, mock_fantia_client)
@@ -272,7 +261,7 @@ class TestFantiaFileService:
         mock_join: MagicMock,
         mock_makedirs: MagicMock,
         fantia_config: FantiaConfig,
-        fantia_test_data: FantiaTestDataFactory,
+        fantia_test_data: "FantiaTestDataFactory",
     ) -> None:
         """投稿ディレクトリ作成テスト."""
         mock_config = MagicMock()
