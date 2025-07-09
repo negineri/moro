@@ -3,6 +3,8 @@
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, mock_open, patch
 
+import pytest
+
 if TYPE_CHECKING:
     from conftest import FantiaTestDataFactory
 
@@ -93,3 +95,27 @@ class TestFantiaFileService:
                 mock_makedirs.assert_called_once_with(
                     "/test/post/content123_Test_Content", exist_ok=True
                 )
+
+    @patch("moro.services.fantia_file.os.makedirs")
+    def test_create_directory_permission_error(self, mock_makedirs: MagicMock) -> None:
+        """ディレクトリ作成権限エラーのテスト."""
+        service = self._create_file_service()
+
+        # 権限エラーをシミュレート
+        mock_makedirs.side_effect = PermissionError("Permission denied")
+
+        # 例外が発生することを検証
+        with pytest.raises(PermissionError, match="Permission denied"):
+            service.create_content_directory("/root/test", "content123", "Test Content")
+
+    @patch("builtins.open", new_callable=mock_open)
+    def test_save_file_permission_error(self, mock_file: MagicMock) -> None:
+        """ファイル保存権限エラーのテスト."""
+        service = self._create_file_service()
+
+        # 権限エラーをシミュレート
+        mock_file.side_effect = PermissionError("Permission denied")
+
+        # 例外が発生することを検証
+        with pytest.raises(PermissionError, match="Permission denied"):
+            service.save_post_comment("/readonly/dir", "Test comment")

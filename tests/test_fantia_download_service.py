@@ -178,3 +178,47 @@ class TestFantiaDownloadService:
         # ファイルが作成されないことを検証
         mock_file.assert_not_called()
         mock_remove.assert_not_called()
+
+    @patch("builtins.open", new_callable=mock_open)
+    def test_perform_download_timeout_error(
+        self,
+        mock_file: MagicMock,
+        mock_fantia_client: MagicMock,
+        config_repository: ConfigRepository,
+    ) -> None:
+        """ダウンロード実行タイムアウトエラーテスト."""
+        import httpx
+
+        service = self._create_download_service(mock_fantia_client)
+
+        # タイムアウトエラーをシミュレート
+        mock_fantia_client.stream.side_effect = httpx.TimeoutException("Request timeout")
+
+        # 例外が発生することを検証
+        with pytest.raises(httpx.TimeoutException, match="Request timeout"):
+            service._perform_download("https://example.com/test.jpg", "/test/test.jpg")
+
+        # ファイルが作成されないことを検証
+        mock_file.assert_not_called()
+
+    @patch("builtins.open", new_callable=mock_open)
+    def test_perform_download_connection_error(
+        self,
+        mock_file: MagicMock,
+        mock_fantia_client: MagicMock,
+        config_repository: ConfigRepository,
+    ) -> None:
+        """ダウンロード実行接続エラーテスト."""
+        import httpx
+
+        service = self._create_download_service(mock_fantia_client)
+
+        # 接続エラーをシミュレート
+        mock_fantia_client.stream.side_effect = httpx.ConnectError("Connection refused")
+
+        # 例外が発生することを検証
+        with pytest.raises(httpx.ConnectError, match="Connection refused"):
+            service._perform_download("https://example.com/test.jpg", "/test/test.jpg")
+
+        # ファイルが作成されないことを検証
+        mock_file.assert_not_called()

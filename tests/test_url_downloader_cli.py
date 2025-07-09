@@ -144,7 +144,7 @@ class TestUrlDownloaderCLI:
 
                 assert result.exit_code == 0
 
-    def test_download_command_logging_setup(self) -> None:
+    def test_logging_setup_configuration(self) -> None:
         """ロギングの設定が正しいことをテスト。
 
         詳細フラグが使用されるときに、ロギングシステムが正しく設定されることを検証します。
@@ -172,7 +172,7 @@ class TestUrlDownloaderCLI:
                     mock_logger.setLevel.assert_called_with(logging.DEBUG)
                     mock_logger.addHandler.assert_called_once()
 
-    def test_download_command_logging_with_existing_handler(self) -> None:
+    def test_logging_with_existing_handler(self) -> None:
         """既存のハンドラがある場合のロギング設定のテスト。
 
         ロギングシステムが既にハンドラを持っているときに冗長なハンドラを追加しないことを検証します。
@@ -196,7 +196,7 @@ class TestUrlDownloaderCLI:
                     assert result.exit_code == 0
                     mock_logger.addHandler.assert_not_called()
 
-    def test_download_command_exception_with_verbose(self) -> None:
+    def test_exception_with_verbose_mode(self) -> None:
         """詳細モードでの例外処理のテスト。
 
         例外が発生し、詳細モードが有効な場合に次のことを検証します。

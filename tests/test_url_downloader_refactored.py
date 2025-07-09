@@ -332,12 +332,18 @@ class TestDownloadFromUrlListZip:
         assert result == [str(zip_path)]
         assert zip_path.exists()
 
-        with zipfile.ZipFile(zip_path, "r") as zf:
-            namelist = zf.namelist()
-            assert len(namelist) == 3
-            assert "file1.txt" in namelist
-            assert "file2.pdf" in namelist
-            assert "file3.jpg" in namelist
+        # ZIPファイルの内容を検証し、適切にクリーンアップ
+        try:
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                namelist = zf.namelist()
+                assert len(namelist) == 3
+                assert "file1.txt" in namelist
+                assert "file2.pdf" in namelist
+                assert "file3.jpg" in namelist
+        finally:
+            # テスト終了時に一時ファイルが確実に削除されることを確認
+            if zip_path.exists():
+                zip_path.unlink()
 
     @mock.patch("moro.modules.url_downloader.download_content")
     def test_download_to_zip_with_auto_prefix(
@@ -354,10 +360,15 @@ class TestDownloadFromUrlListZip:
         assert result == [str(zip_path)]
         assert zip_path.exists()
 
-        with zipfile.ZipFile(zip_path, "r") as zf:
-            namelist = zf.namelist()
-            assert len(namelist) == 3
-            # プレフィックス形式の確認
-            assert any(name.startswith(("1_", "01_")) for name in namelist)
-            assert any(name.startswith(("2_", "02_")) for name in namelist)
-            assert any(name.startswith(("3_", "03_")) for name in namelist)
+        try:
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                namelist = zf.namelist()
+                assert len(namelist) == 3
+                # プレフィックス形式の確認
+                assert any(name.startswith(("1_", "01_")) for name in namelist)
+                assert any(name.startswith(("2_", "02_")) for name in namelist)
+                assert any(name.startswith(("3_", "03_")) for name in namelist)
+        finally:
+            # テスト終了時に一時ファイルが確実に削除されることを確認
+            if zip_path.exists():
+                zip_path.unlink()
