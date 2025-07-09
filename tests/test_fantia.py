@@ -102,8 +102,11 @@ class TestCheckLogin:
         mock_client.get.side_effect = httpx.RequestError("Network error")
 
         # 例外が発生することを確認
-        with pytest.raises(httpx.RequestError):
+        with pytest.raises(httpx.RequestError, match="Network error"):
             check_login(mock_client)
+
+        # APIエンドポイントが呼び出されたことを検証
+        mock_client.get.assert_called_once_with("https://fantia.jp/api/v1/me")
 
 
 class TestFetchPostData:
@@ -129,6 +132,11 @@ class TestFetchPostData:
         assert result == {"id": 12345, "title": "Test Post"}
         mock_check_login.assert_called_once_with(mock_client)
         mock_get_csrf.assert_called_once_with(mock_client, "12345")
+        # GETリクエストが正しいURLで呼び出されたことを検証
+        mock_client.get.assert_called_once_with(
+            "https://fantia.jp/api/v1/posts/12345",
+            headers={"X-CSRF-Token": "test_csrf_token", "X-Requested-With": "XMLHttpRequest"},
+        )
 
     @patch("moro.modules.fantia.check_login")
     def test_fetch_post_data_login_failed(self, mock_check_login: MagicMock) -> None:
@@ -138,6 +146,11 @@ class TestFetchPostData:
 
         with pytest.raises(ValueError, match="Invalid session"):
             _fetch_post_data(mock_client, "12345")
+
+        # ログインチェックが呼び出されたことを検証
+        mock_check_login.assert_called_once_with(mock_client)
+        # ログイン失敗時はデータ取得が呼び出されないことを検証
+        mock_client.get.assert_not_called()
 
 
 class TestExtractPostMetadata:
@@ -173,6 +186,7 @@ class TestExtractPostMetadata:
         result = _extract_post_metadata(post_json)
 
         assert result["posted_at"] == result["converted_at"]
+        assert result["comment"] is None
 
 
 class TestValidatePostType:

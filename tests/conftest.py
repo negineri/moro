@@ -4,6 +4,7 @@ import os
 import tempfile
 from collections.abc import Callable, Generator
 from pathlib import Path
+from typing import Union
 from unittest.mock import MagicMock
 
 import pytest
@@ -238,3 +239,42 @@ def fantia_config() -> FantiaConfig:
 def fantia_post_data() -> FantiaPostData:
     """標準的なFantiaPostDataのfixture."""
     return FantiaTestDataFactory.create_fantia_post_data()
+
+
+# ヘルパー関数
+def create_mock_response(
+    status_code: int = 200, json_data: Union[dict, None] = None, text: Union[str, None] = None
+) -> MagicMock:
+    """HTTPレスポンスのモックを作成するヘルパー関数."""
+    mock_response = MagicMock()
+    mock_response.status_code = status_code
+    mock_response.is_success = status_code < 400
+
+    if json_data:
+        mock_response.json.return_value = json_data
+    if text:
+        mock_response.text = text
+
+    return mock_response
+
+
+def create_mock_stream_response(content: bytes, status_code: int = 200) -> MagicMock:
+    """ストリーミングレスポンスのモックを作成するヘルパー関数."""
+    mock_response = MagicMock()
+    mock_response.status_code = status_code
+    mock_response.headers = {"Content-Length": str(len(content))}
+    mock_response.iter_bytes.return_value = [content]
+
+    return mock_response
+
+
+@pytest.fixture
+def mock_http_response() -> Callable[[int, Union[dict, None], Union[str, None]], MagicMock]:
+    """HTTPレスポンスモック作成のfixture."""
+    return create_mock_response
+
+
+@pytest.fixture
+def mock_stream_response() -> Callable[[bytes, int], MagicMock]:
+    """ストリーミングレスポンスモック作成のfixture."""
+    return create_mock_stream_response

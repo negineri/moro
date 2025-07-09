@@ -44,6 +44,7 @@ def test_aliased_group() -> None:
 def test_config_repo_read_file_not_found() -> None:
     """Test _load_logging_config raises FileNotFoundError when logging config is missing."""
     from moro.config.settings import _load_logging_config
+
     with patch("pathlib.Path.exists", return_value=False):
         try:
             _load_logging_config()
@@ -80,7 +81,7 @@ def test_resolve_command_with_none_command() -> None:
     ctx = click.Context(group)
 
     # Mock the parent resolve_command to return None
-    with patch.object(click.Group, 'resolve_command', return_value=("", None, ["nonexistent"])):
+    with patch.object(click.Group, "resolve_command", return_value=("", None, ["nonexistent"])):
         try:
             group.resolve_command(ctx, ["nonexistent"])
             raise AssertionError("Should have raised an exception")
