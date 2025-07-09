@@ -98,6 +98,7 @@ class FantiaConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+@singleton
 class FantiaClient(httpx.Client):
     """A synchronous HTTP client for interacting with the Fantia API."""
 
