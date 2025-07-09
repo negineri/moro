@@ -38,18 +38,21 @@ class TestFantiaDownloadService:
             )
         )
 
-        # モックの設定
-        mock_fantia_client.stream.return_value.__enter__.return_value = MagicMock(
-            status_code=200,
-            headers={"Content-Length": "1024"},
-            iter_bytes=MagicMock(return_value=[b"test"]),
-        )
+        # HTTPレスポンスのモック設定
+        thumbnail_data = b"test_thumbnail_data"
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.headers = {"Content-Length": str(len(thumbnail_data))}
+        mock_response.iter_bytes.return_value = [thumbnail_data]
+        mock_fantia_client.stream.return_value.__enter__.return_value = mock_response
 
-        with patch.object(service, "_perform_download") as mock_perform:
-            service.download_thumbnail("/test/path", post_data)
-            mock_perform.assert_called_once_with(
-                "https://example.com/thumb.jpg", "/test/path/0000_thumb.jpg"
-            )
+        # 実行
+        service.download_thumbnail("/test/path", post_data)
+
+        # 検証
+        mock_fantia_client.stream.assert_called_once_with("GET", "https://example.com/thumb.jpg")
+        mock_file.assert_called_once_with("/test/path/0000_thumb.jpg", "wb")
+        mock_file.return_value.write.assert_called_once_with(thumbnail_data)
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("moro.services.fantia_download.os.path.join")
@@ -76,22 +79,32 @@ class TestFantiaDownloadService:
             ],
         )
 
+        # パスのモック設定
         mock_join.side_effect = ["/test/comment.txt", "/test/000.jpg", "/test/001.jpg"]
 
-        with patch.object(service, "_perform_download") as mock_perform:
-            service.download_photo_gallery("/test/path", photo_gallery)
+        # HTTPレスポンスのモック設定
+        photo_data = b"photo_data"
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.headers = {"Content-Length": str(len(photo_data))}
+        mock_response.iter_bytes.return_value = [photo_data]
+        mock_fantia_client.stream.return_value.__enter__.return_value = mock_response
 
-            # 具体的な呼び出しを検証
-            expected_calls = [
-                (("https://example.com/photo1.jpg", "/test/000.jpg"),),
-                (("https://example.com/photo2.jpg", "/test/001.jpg"),),
-            ]
-            assert mock_perform.call_count == 2
-            assert mock_perform.call_args_list == expected_calls
+        # 実行
+        service.download_photo_gallery("/test/path", photo_gallery)
 
-            # コメントファイルが書き込みされたことを検証
-            mock_file.assert_called_with("/test/comment.txt", "w", encoding="utf-8")
-            mock_file.return_value.write.assert_called_once_with("Test gallery comment")
+        # 検証 - HTTPリクエストが正しく行われたか
+        assert mock_fantia_client.stream.call_count == 2
+        expected_urls = ["https://example.com/photo1.jpg", "https://example.com/photo2.jpg"]
+        actual_urls = [call[0][1] for call in mock_fantia_client.stream.call_args_list]
+        assert actual_urls == expected_urls
+
+        # コメントファイルが書き込みされたことを検証
+        mock_file.assert_any_call("/test/comment.txt", "w", encoding="utf-8")
+
+        # 画像ファイルが書き込みされたことを検証
+        mock_file.assert_any_call("/test/000.jpg", "wb")
+        mock_file.assert_any_call("/test/001.jpg", "wb")
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("moro.services.fantia_download.os.path.join")
@@ -112,17 +125,28 @@ class TestFantiaDownloadService:
             name="test.pdf",
         )
 
+        # パスのモック設定
         mock_join.side_effect = ["/test/comment.txt", "/test/test.pdf"]
 
-        with patch.object(service, "_perform_download") as mock_perform:
-            service.download_file("/test/path", file_data)
+        # HTTPレスポンスのモック設定
+        pdf_data = b"pdf_file_data"
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.headers = {"Content-Length": str(len(pdf_data))}
+        mock_response.iter_bytes.return_value = [pdf_data]
+        mock_fantia_client.stream.return_value.__enter__.return_value = mock_response
 
-            # 具体的な呼び出しを検証
-            mock_perform.assert_called_once_with("https://example.com/test.pdf", "/test/test.pdf")
+        # 実行
+        service.download_file("/test/path", file_data)
 
-            # コメントファイルが書き込みされたことを検証
-            mock_file.assert_called_with("/test/comment.txt", "w", encoding="utf-8")
-            mock_file.return_value.write.assert_called_once_with("Test file comment")
+        # 検証
+        mock_fantia_client.stream.assert_called_once_with("GET", "https://example.com/test.pdf")
+
+        # コメントファイルが書き込みされたことを検証
+        mock_file.assert_any_call("/test/comment.txt", "w", encoding="utf-8")
+
+        # PDFファイルが書き込みされたことを検証
+        mock_file.assert_any_call("/test/test.pdf", "wb")
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("moro.services.fantia_download.os.remove")
