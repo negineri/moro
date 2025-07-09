@@ -1,9 +1,11 @@
 """fantia moduleのテスト."""
 
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
+from conftest import FantiaTestDataFactory
 
 from moro.modules.fantia import (
     FantiaClient,
@@ -176,7 +178,9 @@ class TestExtractPostMetadata:
         assert result["creator_id"] == 456
         assert result["comment"] == "Test comment"
 
-    def test_extract_post_metadata_no_converted_at(self, fantia_test_data) -> None:
+    def test_extract_post_metadata_no_converted_at(
+        self, fantia_test_data: FantiaTestDataFactory
+    ) -> None:
         """converted_atがない場合のテスト."""
         post_json = fantia_test_data.create_post_json_data(
             converted_at=None,
@@ -192,14 +196,14 @@ class TestExtractPostMetadata:
 class TestValidatePostType:
     """_validate_post_type 関数のテスト."""
 
-    def test_validate_post_type_blog_post(self, fantia_test_data) -> None:
+    def test_validate_post_type_blog_post(self, fantia_test_data: FantiaTestDataFactory) -> None:
         """ブログ投稿のテスト."""
         post_json = fantia_test_data.create_post_json_data(is_blog=True)
 
         with pytest.raises(NotImplementedError, match="Blog posts are not supported"):
             _validate_post_type(post_json, fantia_test_data.DEFAULT_POST_ID)
 
-    def test_validate_post_type_normal_post(self, fantia_test_data) -> None:
+    def test_validate_post_type_normal_post(self, fantia_test_data: FantiaTestDataFactory) -> None:
         """通常の投稿のテスト."""
         post_json = fantia_test_data.create_post_json_data(is_blog=False)
 
@@ -210,7 +214,7 @@ class TestValidatePostType:
 class TestParsePostThumbnail:
     """_parse_post_thumbnail 関数のテスト."""
 
-    def test_parse_post_thumbnail_success(self, fantia_test_data) -> None:
+    def test_parse_post_thumbnail_success(self, fantia_test_data: FantiaTestDataFactory) -> None:
         """サムネイル解析成功テスト."""
         post_json = fantia_test_data.create_post_json_data()
 
@@ -220,7 +224,7 @@ class TestParsePostThumbnail:
         assert result.url == "https://example.com/thumb.jpg"
         assert result.ext == ".jpg"
 
-    def test_parse_post_thumbnail_no_thumb(self, fantia_test_data) -> None:
+    def test_parse_post_thumbnail_no_thumb(self, fantia_test_data: FantiaTestDataFactory) -> None:
         """サムネイルがない場合のテスト."""
         post_json = fantia_test_data.create_post_json_data()
         del post_json["thumb"]
@@ -233,7 +237,7 @@ class TestParsePostThumbnail:
 class TestParsePostContents:
     """_parse_post_contents 関数のテスト."""
 
-    def test_parse_post_contents_invisible(self, fantia_test_data) -> None:
+    def test_parse_post_contents_invisible(self, fantia_test_data: FantiaTestDataFactory) -> None:
         """非表示コンテンツのテスト."""
         post_contents = [{"id": 1, "category": "text", "visible_status": "invisible"}]
 
@@ -246,16 +250,18 @@ class TestParsePostContents:
         assert text == []
         assert products == []
 
-    def test_parse_post_contents_unsupported_category(self, fantia_test_data) -> None:
+    def test_parse_post_contents_unsupported_category(
+        self, fantia_test_data: FantiaTestDataFactory
+    ) -> None:
         """サポートされていないカテゴリのテスト."""
         post_contents = [{"id": 1, "category": "unsupported", "visible_status": "visible"}]
 
         with pytest.raises(NotImplementedError, match="not supported yet"):
             _parse_post_contents(post_contents, fantia_test_data.DEFAULT_POST_ID)
 
-    def test_parse_post_contents_empty(self, fantia_test_data) -> None:
+    def test_parse_post_contents_empty(self, fantia_test_data: FantiaTestDataFactory) -> None:
         """空のコンテンツのテスト."""
-        post_contents = []
+        post_contents: list[Any] = []
 
         gallery, files, text, products = _parse_post_contents(
             post_contents, fantia_test_data.DEFAULT_POST_ID
@@ -266,7 +272,9 @@ class TestParsePostContents:
         assert text == []
         assert products == []
 
-    def test_parse_post_contents_valid_categories(self, fantia_test_data) -> None:
+    def test_parse_post_contents_valid_categories(
+        self, fantia_test_data: FantiaTestDataFactory
+    ) -> None:
         """有効なカテゴリのテスト."""
         post_contents = [
             {

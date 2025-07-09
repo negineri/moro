@@ -3,7 +3,12 @@
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
+from conftest import FantiaTestDataFactory
 
+from moro.config.settings import ConfigRepository
+from moro.modules.fantia import (
+    FantiaConfig,
+)
 from moro.services.fantia_auth import FantiaAuthService
 from moro.services.fantia_download import FantiaDownloadService
 from moro.services.fantia_file import FantiaFileService
@@ -14,10 +19,13 @@ class TestFantiaAuthService:
 
     @patch("moro.services.fantia_auth.check_login")
     def test_ensure_authenticated_already_logged_in(
-        self, mock_check_login: MagicMock, mock_fantia_client, fantia_config
+        self,
+        mock_check_login: MagicMock,
+        mock_fantia_client: MagicMock,
+        config_repository: ConfigRepository,
     ) -> None:
         """既にログイン済みの場合のテスト."""
-        service = FantiaAuthService(fantia_config, mock_fantia_client)
+        service = FantiaAuthService(config_repository, mock_fantia_client)
 
         # 既にログイン済み
         mock_check_login.return_value = True
@@ -35,8 +43,8 @@ class TestFantiaAuthService:
         mock_makedirs: MagicMock,
         mock_chrome: MagicMock,
         mock_check_login: MagicMock,
-        mock_fantia_client,
-        fantia_test_data,
+        mock_fantia_client: MagicMock,
+        fantia_test_data: FantiaTestDataFactory,
     ) -> None:
         """ログインが必要な場合のテスト."""
         mock_config = MagicMock()
@@ -65,7 +73,10 @@ class TestFantiaAuthService:
 
     @patch("moro.services.fantia_auth.check_login")
     def test_ensure_authenticated_login_failed(
-        self, mock_check_login: MagicMock, mock_fantia_client, fantia_config
+        self,
+        mock_check_login: MagicMock,
+        mock_fantia_client: MagicMock,
+        fantia_config: FantiaConfig,
     ) -> None:
         """ログイン失敗のテスト."""
         mock_config = MagicMock()
@@ -90,17 +101,15 @@ class TestFantiaDownloadService:
     """FantiaDownloadService クラスのテスト."""
 
     @patch("builtins.open", new_callable=mock_open)
-    @patch("moro.services.fantia_download.os.path.join")
     def test_download_thumbnail_success(
         self,
-        mock_join: MagicMock,
         mock_file: MagicMock,
-        mock_fantia_client,
-        fantia_config,
-        fantia_test_data,
+        mock_fantia_client: MagicMock,
+        config_repository: ConfigRepository,
+        fantia_test_data: FantiaTestDataFactory,
     ) -> None:
         """サムネイルダウンロード成功テスト."""
-        service = FantiaDownloadService(fantia_config, mock_fantia_client)
+        service = FantiaDownloadService(config_repository, mock_fantia_client)
 
         # 投稿データのモック
         post_data = fantia_test_data.create_fantia_post_data(
@@ -110,7 +119,6 @@ class TestFantiaDownloadService:
         )
 
         # モックの設定
-        mock_join.return_value = "/test/path/0000_thumb.jpg"
         mock_fantia_client.stream.return_value.__enter__.return_value = MagicMock(
             status_code=200,
             headers={"Content-Length": "1024"},
@@ -122,7 +130,6 @@ class TestFantiaDownloadService:
             mock_perform.assert_called_once_with(
                 "https://example.com/thumb.jpg", "/test/path/0000_thumb.jpg"
             )
-            mock_join.assert_called_once_with("/test/path", "0000_thumb.jpg")
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("moro.services.fantia_download.os.path.join")
@@ -130,12 +137,12 @@ class TestFantiaDownloadService:
         self,
         mock_join: MagicMock,
         mock_file: MagicMock,
-        mock_fantia_client,
-        fantia_config,
-        fantia_test_data,
+        mock_fantia_client: MagicMock,
+        config_repository: ConfigRepository,
+        fantia_test_data: FantiaTestDataFactory,
     ) -> None:
         """フォトギャラリーダウンロードテスト."""
-        service = FantiaDownloadService(fantia_config, mock_fantia_client)
+        service = FantiaDownloadService(config_repository, mock_fantia_client)
 
         # フォトギャラリーのモック
         photo_gallery = fantia_test_data.create_fantia_photo_gallery(
@@ -172,12 +179,12 @@ class TestFantiaDownloadService:
         self,
         mock_join: MagicMock,
         mock_file: MagicMock,
-        mock_fantia_client,
-        fantia_config,
-        fantia_test_data,
+        mock_fantia_client: MagicMock,
+        config_repository: ConfigRepository,
+        fantia_test_data: FantiaTestDataFactory,
     ) -> None:
         """ファイルダウンロードテスト."""
-        service = FantiaDownloadService(fantia_config, mock_fantia_client)
+        service = FantiaDownloadService(config_repository, mock_fantia_client)
 
         # ファイルデータのモック
         file_data = fantia_test_data.create_fantia_file(
@@ -200,10 +207,14 @@ class TestFantiaDownloadService:
     @patch("builtins.open", new_callable=mock_open)
     @patch("moro.services.fantia_download.os.remove")
     def test_perform_download_success(
-        self, mock_remove: MagicMock, mock_file: MagicMock, mock_fantia_client, fantia_config
+        self,
+        mock_remove: MagicMock,
+        mock_file: MagicMock,
+        mock_fantia_client: MagicMock,
+        config_repository: ConfigRepository,
     ) -> None:
         """ダウンロード実行成功テスト."""
-        service = FantiaDownloadService(fantia_config, mock_fantia_client)
+        service = FantiaDownloadService(config_repository, mock_fantia_client)
 
         # レスポンスのモック
         mock_response = MagicMock()
@@ -228,10 +239,14 @@ class TestFantiaDownloadService:
     @patch("builtins.open", new_callable=mock_open)
     @patch("moro.services.fantia_download.os.remove")
     def test_perform_download_network_error(
-        self, mock_remove: MagicMock, mock_file: MagicMock, mock_fantia_client, fantia_config
+        self,
+        mock_remove: MagicMock,
+        mock_file: MagicMock,
+        mock_fantia_client: MagicMock,
+        config_repository: ConfigRepository,
     ) -> None:
         """ダウンロード実行ネットワークエラーテスト."""
-        service = FantiaDownloadService(fantia_config, mock_fantia_client)
+        service = FantiaDownloadService(config_repository, mock_fantia_client)
 
         # ネットワークエラーをシミュレート
         mock_fantia_client.stream.side_effect = Exception("Network error")
@@ -252,8 +267,12 @@ class TestFantiaFileService:
     @patch("moro.services.fantia_file.os.path.join")
     @patch("moro.services.fantia_file.sanitize_filename")
     def test_create_post_directory(
-        self, mock_sanitize: MagicMock, mock_join: MagicMock, mock_makedirs: MagicMock,
-        fantia_config, fantia_test_data
+        self,
+        mock_sanitize: MagicMock,
+        mock_join: MagicMock,
+        mock_makedirs: MagicMock,
+        fantia_config: FantiaConfig,
+        fantia_test_data: FantiaTestDataFactory,
     ) -> None:
         """投稿ディレクトリ作成テスト."""
         mock_config = MagicMock()

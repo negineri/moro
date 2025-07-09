@@ -67,7 +67,7 @@ def test_aliased_group_multiple_matches() -> None:
     ctx = click.Context(group)
 
     # Test multiple matches - should fail
-    ctx.fail = lambda msg: (_ for _ in ()).throw(click.BadParameter(msg))
+    ctx.fail = lambda msg: (_ for _ in ()).throw(click.BadParameter(msg))  # type: ignore
     try:
         group.get_command(ctx, "he")
         raise AssertionError("Should have raised an exception")

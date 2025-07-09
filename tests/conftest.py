@@ -1,14 +1,14 @@
 """共通のテスト設定とfixture."""
 
 import os
-import tempfile
-from collections.abc import Callable, Generator
+from collections.abc import Callable
 from pathlib import Path
-from typing import Union
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 
+from moro.config.settings import ConfigRepository
 from moro.modules.fantia import (
     FantiaConfig,
     FantiaFile,
@@ -44,18 +44,6 @@ def create_url_file(tmp_path: Path) -> Callable[[list[str], str], str]:
         return str(file_path)
 
     return _create_file
-
-
-@pytest.fixture
-def mock_download_content() -> Callable[[bytes], MagicMock]:
-    """download_content関数のモック."""
-
-    def _create_mock(content: bytes = b"test content") -> MagicMock:
-        mock = MagicMock()
-        mock.return_value = content
-        return mock
-
-    return _create_mock
 
 
 @pytest.fixture
@@ -106,18 +94,6 @@ def mock_fantia_client() -> MagicMock:
     return mock
 
 
-@pytest.fixture
-def temp_dir() -> Generator[str, None, None]:
-    """一時ディレクトリを作成・削除するfixture."""
-    temp_dir_path = tempfile.mkdtemp()
-    try:
-        yield temp_dir_path
-    finally:
-        import shutil
-
-        shutil.rmtree(temp_dir_path, ignore_errors=True)
-
-
 # Fantia関連のテストデータファクトリ
 class FantiaTestDataFactory:
     """Fantia関連のテストデータを生成するファクトリクラス."""
@@ -130,9 +106,9 @@ class FantiaTestDataFactory:
     DEFAULT_CONVERTED_AT = 1672531200
 
     @staticmethod
-    def create_fantia_config(**kwargs) -> FantiaConfig:
+    def create_fantia_config(**kwargs: Any) -> FantiaConfig:
         """FantiaConfigのテストデータを作成."""
-        defaults = {
+        defaults: dict[str, Any] = {
             "session_id": "test_session_id",
             "directory": "test/downloads",
             "download_thumb": False,
@@ -144,9 +120,9 @@ class FantiaTestDataFactory:
         return FantiaConfig(**defaults)
 
     @staticmethod
-    def create_fantia_post_data(**kwargs) -> FantiaPostData:
+    def create_fantia_post_data(**kwargs: Any) -> FantiaPostData:
         """FantiaPostDataのテストデータを作成."""
-        defaults = {
+        defaults: dict[str, Any] = {
             "id": FantiaTestDataFactory.DEFAULT_POST_ID,
             "title": "Test Post Title",
             "creator_id": FantiaTestDataFactory.DEFAULT_CREATOR_ID,
@@ -165,7 +141,7 @@ class FantiaTestDataFactory:
         return FantiaPostData(**defaults)
 
     @staticmethod
-    def create_fantia_file(**kwargs) -> FantiaFile:
+    def create_fantia_file(**kwargs: Any) -> FantiaFile:
         """FantiaFileのテストデータを作成."""
         defaults = {
             "id": "file_001",
@@ -178,9 +154,9 @@ class FantiaTestDataFactory:
         return FantiaFile(**defaults)
 
     @staticmethod
-    def create_fantia_photo_gallery(**kwargs) -> FantiaPhotoGallery:
+    def create_fantia_photo_gallery(**kwargs: Any) -> FantiaPhotoGallery:
         """FantiaPhotoGalleryのテストデータを作成."""
-        defaults = {
+        defaults: dict[str, Any] = {
             "id": "gallery_001",
             "title": "Test Gallery",
             "comment": "Test gallery comment",
@@ -193,7 +169,7 @@ class FantiaTestDataFactory:
         return FantiaPhotoGallery(**defaults)
 
     @staticmethod
-    def create_fantia_url(**kwargs) -> FantiaURL:
+    def create_fantia_url(**kwargs: Any) -> FantiaURL:
         """FantiaURLのテストデータを作成."""
         defaults = {
             "url": "https://example.com/image.jpg",
@@ -203,9 +179,9 @@ class FantiaTestDataFactory:
         return FantiaURL(**defaults)
 
     @staticmethod
-    def create_post_json_data(**kwargs) -> dict:
+    def create_post_json_data(**kwargs: Any) -> dict[str, Any]:
         """投稿JSONデータのテストデータを作成."""
-        defaults = {
+        defaults: dict[str, Any] = {
             "id": 123456,
             "title": "Test Post Title",
             "fanclub": {
@@ -236,45 +212,6 @@ def fantia_config() -> FantiaConfig:
 
 
 @pytest.fixture
-def fantia_post_data() -> FantiaPostData:
-    """標準的なFantiaPostDataのfixture."""
-    return FantiaTestDataFactory.create_fantia_post_data()
-
-
-# ヘルパー関数
-def create_mock_response(
-    status_code: int = 200, json_data: Union[dict, None] = None, text: Union[str, None] = None
-) -> MagicMock:
-    """HTTPレスポンスのモックを作成するヘルパー関数."""
-    mock_response = MagicMock()
-    mock_response.status_code = status_code
-    mock_response.is_success = status_code < 400
-
-    if json_data:
-        mock_response.json.return_value = json_data
-    if text:
-        mock_response.text = text
-
-    return mock_response
-
-
-def create_mock_stream_response(content: bytes, status_code: int = 200) -> MagicMock:
-    """ストリーミングレスポンスのモックを作成するヘルパー関数."""
-    mock_response = MagicMock()
-    mock_response.status_code = status_code
-    mock_response.headers = {"Content-Length": str(len(content))}
-    mock_response.iter_bytes.return_value = [content]
-
-    return mock_response
-
-
-@pytest.fixture
-def mock_http_response() -> Callable[[int, Union[dict, None], Union[str, None]], MagicMock]:
-    """HTTPレスポンスモック作成のfixture."""
-    return create_mock_response
-
-
-@pytest.fixture
-def mock_stream_response() -> Callable[[bytes, int], MagicMock]:
-    """ストリーミングレスポンスモック作成のfixture."""
-    return create_mock_stream_response
+def config_repository() -> ConfigRepository:
+    """ConfigRepositoryのテスト用fixture."""
+    return ConfigRepository()
