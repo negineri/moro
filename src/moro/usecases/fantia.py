@@ -10,7 +10,6 @@ from injector import inject
 from moro.config.settings import ConfigRepository
 from moro.modules.fantia import (
     FantiaClient,
-    FantiaPostData,
     get_posts_by_user,
     parse_post,
 )
@@ -42,20 +41,8 @@ class FantiaDownloadPostUseCase:
             echo("Failed to login to Fantia. Please check your session ID.")
             return
 
-        post = parse_post(self.client, post_id)
-        self._display_post_info(post)
-
         echo(f"Downloading post ID: {post_id}")
         self._download_single_post(post_id)
-
-    def _display_post_info(self, post: FantiaPostData) -> None:
-        """Display post information."""
-        echo(f"Post ID: {post.id}")
-        echo(f"Post Title: {post.title}")
-        echo(f"Post Creator: {post.creator_name}")
-        echo(f"Post Contents: {len(post.contents)}")
-        echo(f"Post Posted At: {post.posted_at}")
-        echo(f"Post Converted At: {post.converted_at}")
 
     def _download_single_post(self, post_id: str) -> None:
         """Download a single post with all its content."""
