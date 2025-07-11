@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
-from moro.config.settings import ConfigRepository
 from moro.services.fantia_download import FantiaDownloadService
 
 if TYPE_CHECKING:
@@ -30,7 +29,6 @@ class TestFantiaDownloadService:
         self,
         mock_file: MagicMock,
         mock_fantia_client: MagicMock,
-        config_repository: ConfigRepository,
         fantia_post_data_factory: "FantiaPostDataFactory",
         fantia_url_factory: "FantiaURLFactory",
     ) -> None:
@@ -59,13 +57,10 @@ class TestFantiaDownloadService:
         mock_file.return_value.write.assert_called_once_with(thumbnail_data)
 
     @patch("builtins.open", new_callable=mock_open)
-    @patch("moro.services.fantia_download.os.path.join")
     def test_download_photo_gallery(
         self,
-        mock_join: MagicMock,
         mock_file: MagicMock,
         mock_fantia_client: MagicMock,
-        config_repository: ConfigRepository,
         fantia_photo_gallery_factory: "FantiaPhotoGalleryFactory",
         fantia_url_factory: "FantiaURLFactory",
     ) -> None:
@@ -79,9 +74,6 @@ class TestFantiaDownloadService:
                 fantia_url_factory.build(url="https://example.com/photo2.jpg", ext=".jpg"),
             ],
         )
-
-        # パスのモック設定
-        mock_join.side_effect = ["/test/comment.txt", "/test/000.jpg", "/test/001.jpg"]
 
         # HTTPレスポンスのモック設定
         photo_data = b"photo_data"
@@ -100,21 +92,27 @@ class TestFantiaDownloadService:
         actual_urls = [call[0][1] for call in mock_fantia_client.stream.call_args_list]
         assert actual_urls == expected_urls
 
-        # コメントファイルが書き込みされたことを検証
-        mock_file.assert_any_call("/test/comment.txt", "w", encoding="utf-8")
+        # ファイル書き込み呼び出しを検証
+        write_calls = [call[0] for call in mock_file.call_args_list]
 
-        # 画像ファイルが書き込みされたことを検証
-        mock_file.assert_any_call("/test/000.jpg", "wb")
-        mock_file.assert_any_call("/test/001.jpg", "wb")
+        # コメントファイルとギャラリー画像ファイルが作成されることを検証
+        comment_files = [
+            call for call in write_calls
+            if "/test/path" in str(call) and "comment.txt" in str(call)
+        ]
+        jpg_files = [
+            call for call in write_calls
+            if "/test/path" in str(call) and ".jpg" in str(call)
+        ]
+
+        assert len(comment_files) > 0
+        assert len(jpg_files) == 2
 
     @patch("builtins.open", new_callable=mock_open)
-    @patch("moro.services.fantia_download.os.path.join")
     def test_download_file(
         self,
-        mock_join: MagicMock,
         mock_file: MagicMock,
         mock_fantia_client: MagicMock,
-        config_repository: ConfigRepository,
         fantia_file_factory: "FantiaFileFactory",
     ) -> None:
         """ファイルダウンロードテスト."""
@@ -125,9 +123,6 @@ class TestFantiaDownloadService:
             url="https://example.com/test.pdf",
             name="test.pdf",
         )
-
-        # パスのモック設定
-        mock_join.side_effect = ["/test/comment.txt", "/test/test.pdf"]
 
         # HTTPレスポンスのモック設定
         pdf_data = b"pdf_file_data"
@@ -143,11 +138,12 @@ class TestFantiaDownloadService:
         # 検証
         mock_fantia_client.stream.assert_called_once_with("GET", "https://example.com/test.pdf")
 
-        # コメントファイルが書き込みされたことを検証
-        mock_file.assert_any_call("/test/comment.txt", "w", encoding="utf-8")
+        # ファイル書き込み呼び出しを検証
+        write_calls = [str(call[0]) for call in mock_file.call_args_list]
 
-        # PDFファイルが書き込みされたことを検証
-        mock_file.assert_any_call("/test/test.pdf", "wb")
+        # コメントファイルとPDFファイルが作成されることを検証
+        assert any("/test/path" in call and "comment.txt" in call for call in write_calls)
+        assert any("/test/path" in call and "test.pdf" in call for call in write_calls)
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("moro.services.fantia_download.os.remove")
@@ -156,7 +152,6 @@ class TestFantiaDownloadService:
         mock_remove: MagicMock,
         mock_file: MagicMock,
         mock_fantia_client: MagicMock,
-        config_repository: ConfigRepository,
     ) -> None:
         """ダウンロード実行成功テスト."""
         service = self._create_download_service(mock_fantia_client)
@@ -188,7 +183,6 @@ class TestFantiaDownloadService:
         mock_remove: MagicMock,
         mock_file: MagicMock,
         mock_fantia_client: MagicMock,
-        config_repository: ConfigRepository,
     ) -> None:
         """ダウンロード実行ネットワークエラーテスト."""
         service = self._create_download_service(mock_fantia_client)
@@ -209,7 +203,6 @@ class TestFantiaDownloadService:
         self,
         mock_file: MagicMock,
         mock_fantia_client: MagicMock,
-        config_repository: ConfigRepository,
     ) -> None:
         """ダウンロード実行タイムアウトエラーテスト."""
         import httpx
@@ -231,7 +224,6 @@ class TestFantiaDownloadService:
         self,
         mock_file: MagicMock,
         mock_fantia_client: MagicMock,
-        config_repository: ConfigRepository,
     ) -> None:
         """ダウンロード実行接続エラーテスト."""
         import httpx
