@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 if TYPE_CHECKING:
-    from conftest import FantiaTestDataFactory
+    pass
 
 from moro.modules.fantia import FantiaConfig
 from moro.services.fantia_auth import FantiaAuthService
@@ -41,7 +41,6 @@ class TestFantiaAuthService:
         self,
         mock_check_login: MagicMock,
         mock_fantia_client: MagicMock,
-        fantia_test_data: "FantiaTestDataFactory",
     ) -> None:
         """ログインが必要な場合のテスト."""
         service = self._create_auth_service(mock_fantia_client)

@@ -1,12 +1,8 @@
 """fantia usecases のテスト."""
 
-from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-if TYPE_CHECKING:
-    from conftest import FantiaTestDataFactory
 
 from moro.usecases.fantia import FantiaDownloadPostsByUserUseCase, FantiaDownloadPostUseCase
 
@@ -16,7 +12,7 @@ class TestFantiaDownloadPostUseCase:
 
     @patch("moro.usecases.fantia.parse_post")
     def test_execute_success(
-        self, mock_parse_post: MagicMock, fantia_test_data: "FantiaTestDataFactory"
+        self, mock_parse_post: MagicMock, fantia_post_data_factory
     ) -> None:
         """実行成功テスト."""
         # モックの設定
@@ -38,7 +34,7 @@ class TestFantiaDownloadPostUseCase:
         mock_auth_service.ensure_authenticated.return_value = True
 
         # 投稿データのモック
-        mock_post_data = fantia_test_data.create_fantia_post_data()
+        mock_post_data = fantia_post_data_factory.build()
         mock_parse_post.return_value = mock_post_data
 
         # ディレクトリ作成のモック

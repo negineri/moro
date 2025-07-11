@@ -5,10 +5,10 @@ from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
-if TYPE_CHECKING:
-    from conftest import FantiaTestDataFactory
-
 from moro.services.fantia_file import FantiaFileService
+
+if TYPE_CHECKING:
+    from conftest import FantiaPostDataFactory
 
 
 class TestFantiaFileService:
@@ -28,7 +28,7 @@ class TestFantiaFileService:
         mock_sanitize: MagicMock,
         mock_join: MagicMock,
         mock_makedirs: MagicMock,
-        fantia_test_data: "FantiaTestDataFactory",
+        fantia_post_data_factory: "FantiaPostDataFactory",
     ) -> None:
         """投稿ディレクトリ作成テスト."""
         service = self._create_file_service()
@@ -40,7 +40,7 @@ class TestFantiaFileService:
         )
 
         # テスト用投稿データ
-        post_data = fantia_test_data.create_fantia_post_data(
+        post_data = fantia_post_data_factory.build(
             id="12345",
             title="Test Post Title",
             creator_id="creator123",

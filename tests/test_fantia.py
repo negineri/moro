@@ -1,13 +1,10 @@
 """fantia moduleのテスト."""
 
-from typing import TYPE_CHECKING, Any
+from typing import Any, Callable
 from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
-
-if TYPE_CHECKING:
-    from conftest import FantiaTestDataFactory
 
 from moro.modules.fantia import (
     FantiaClient,
@@ -296,10 +293,10 @@ class TestExtractPostMetadata:
         assert result["comment"] == "Test comment"
 
     def test_extract_metadata_missing_converted_at(
-        self, fantia_test_data: "FantiaTestDataFactory"
+        self, post_json_data: Callable[..., dict[str, Any]]
     ) -> None:
         """converted_atがない場合のテスト."""
-        post_json = fantia_test_data.create_post_json_data(
+        post_json = post_json_data(
             converted_at=None,
             comment=None,
         )
@@ -313,27 +310,33 @@ class TestExtractPostMetadata:
 class TestValidatePostType:
     """_validate_post_type 関数のテスト."""
 
-    def test_validate_post_type_blog_post(self, fantia_test_data) -> None:
+    def test_validate_post_type_blog_post(
+        self, post_json_data: Callable[..., dict[str, Any]], default_post_id: str
+    ) -> None:
         """ブログ投稿のテスト."""
-        post_json = fantia_test_data.create_post_json_data(is_blog=True)
+        post_json = post_json_data(is_blog=True)
 
         with pytest.raises(NotImplementedError, match="Blog posts are not supported"):
-            _validate_post_type(post_json, fantia_test_data.DEFAULT_POST_ID)
+            _validate_post_type(post_json, default_post_id)
 
-    def test_validate_post_type_normal_post(self, fantia_test_data) -> None:
+    def test_validate_post_type_normal_post(
+        self, post_json_data: Callable[..., dict[str, Any]], default_post_id: str
+    ) -> None:
         """通常の投稿のテスト."""
-        post_json = fantia_test_data.create_post_json_data(is_blog=False)
+        post_json = post_json_data(is_blog=False)
 
         # 例外が発生しないことを確認
-        _validate_post_type(post_json, fantia_test_data.DEFAULT_POST_ID)
+        _validate_post_type(post_json, default_post_id)
 
 
 class TestParsePostThumbnail:
     """_parse_post_thumbnail 関数のテスト."""
 
-    def test_parse_post_thumbnail_success(self, fantia_test_data) -> None:
+    def test_parse_post_thumbnail_success(
+        self, post_json_data: Callable[..., dict[str, Any]]
+    ) -> None:
         """サムネイル解析成功テスト."""
-        post_json = fantia_test_data.create_post_json_data()
+        post_json = post_json_data()
 
         result = _parse_post_thumbnail(post_json)
 
@@ -341,9 +344,11 @@ class TestParsePostThumbnail:
         assert result.url == "https://example.com/thumb.jpg"
         assert result.ext == ".jpg"
 
-    def test_parse_post_thumbnail_no_thumb(self, fantia_test_data) -> None:
+    def test_parse_post_thumbnail_no_thumb(
+        self, post_json_data: Callable[..., dict[str, Any]]
+    ) -> None:
         """サムネイルがない場合のテスト."""
-        post_json = fantia_test_data.create_post_json_data()
+        post_json = post_json_data()
         del post_json["thumb"]
 
         result = _parse_post_thumbnail(post_json)
@@ -354,44 +359,36 @@ class TestParsePostThumbnail:
 class TestParsePostContents:
     """_parse_post_contents 関数のテスト."""
 
-    def test_parse_post_contents_invisible(self, fantia_test_data) -> None:
+    def test_parse_post_contents_invisible(self, default_post_id: str) -> None:
         """非表示コンテンツのテスト."""
         post_contents = [{"id": 1, "category": "text", "visible_status": "invisible"}]
 
-        gallery, files, text, products = _parse_post_contents(
-            post_contents, fantia_test_data.DEFAULT_POST_ID
-        )
+        gallery, files, text, products = _parse_post_contents(post_contents, default_post_id)
 
         assert gallery == []
         assert files == []
         assert text == []
         assert products == []
 
-    def test_parse_contents_unsupported_category(
-        self, fantia_test_data: "FantiaTestDataFactory"
-    ) -> None:
+    def test_parse_contents_unsupported_category(self, default_post_id: str) -> None:
         """サポートされていないカテゴリのテスト."""
         post_contents = [{"id": 1, "category": "unsupported", "visible_status": "visible"}]
 
         with pytest.raises(NotImplementedError, match="not supported yet"):
-            _parse_post_contents(post_contents, fantia_test_data.DEFAULT_POST_ID)
+            _parse_post_contents(post_contents, default_post_id)
 
-    def test_parse_post_contents_empty(self, fantia_test_data) -> None:
+    def test_parse_post_contents_empty(self, default_post_id: str) -> None:
         """空のコンテンツのテスト."""
         post_contents: list[Any] = []
 
-        gallery, files, text, products = _parse_post_contents(
-            post_contents, fantia_test_data.DEFAULT_POST_ID
-        )
+        gallery, files, text, products = _parse_post_contents(post_contents, default_post_id)
 
         assert gallery == []
         assert files == []
         assert text == []
         assert products == []
 
-    def test_parse_contents_valid_categories(
-        self, fantia_test_data: "FantiaTestDataFactory"
-    ) -> None:
+    def test_parse_contents_valid_categories(self, default_post_id: str) -> None:
         """有効なカテゴリのテスト."""
         post_contents = [
             {
@@ -423,9 +420,7 @@ class TestParsePostContents:
             },
         ]
 
-        gallery, files, text, products = _parse_post_contents(
-            post_contents, fantia_test_data.DEFAULT_POST_ID
-        )
+        gallery, files, text, products = _parse_post_contents(post_contents, default_post_id)
 
         assert len(gallery) == 1
         assert len(files) == 1

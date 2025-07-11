@@ -5,11 +5,16 @@ from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
-if TYPE_CHECKING:
-    from conftest import FantiaTestDataFactory
-
 from moro.config.settings import ConfigRepository
 from moro.services.fantia_download import FantiaDownloadService
+
+if TYPE_CHECKING:
+    from conftest import (
+        FantiaFileFactory,
+        FantiaPhotoGalleryFactory,
+        FantiaPostDataFactory,
+        FantiaURLFactory,
+    )
 
 
 class TestFantiaDownloadService:
@@ -26,16 +31,15 @@ class TestFantiaDownloadService:
         mock_file: MagicMock,
         mock_fantia_client: MagicMock,
         config_repository: ConfigRepository,
-        fantia_test_data: "FantiaTestDataFactory",
+        fantia_post_data_factory: "FantiaPostDataFactory",
+        fantia_url_factory: "FantiaURLFactory",
     ) -> None:
         """サムネイルダウンロード成功テスト."""
         service = self._create_download_service(mock_fantia_client)
 
         # 投稿データのモック
-        post_data = fantia_test_data.create_fantia_post_data(
-            thumbnail=fantia_test_data.create_fantia_url(
-                url="https://example.com/thumb.jpg", ext=".jpg"
-            )
+        post_data = fantia_post_data_factory.build(
+            thumbnail=fantia_url_factory.build(url="https://example.com/thumb.jpg", ext=".jpg")
         )
 
         # HTTPレスポンスのモック設定
@@ -62,20 +66,17 @@ class TestFantiaDownloadService:
         mock_file: MagicMock,
         mock_fantia_client: MagicMock,
         config_repository: ConfigRepository,
-        fantia_test_data: "FantiaTestDataFactory",
+        fantia_photo_gallery_factory: "FantiaPhotoGalleryFactory",
+        fantia_url_factory: "FantiaURLFactory",
     ) -> None:
         """フォトギャラリーダウンロードテスト."""
         service = self._create_download_service(mock_fantia_client)
 
         # フォトギャラリーのモック
-        photo_gallery = fantia_test_data.create_fantia_photo_gallery(
+        photo_gallery = fantia_photo_gallery_factory.build(
             photos=[
-                fantia_test_data.create_fantia_url(
-                    url="https://example.com/photo1.jpg", ext=".jpg"
-                ),
-                fantia_test_data.create_fantia_url(
-                    url="https://example.com/photo2.jpg", ext=".jpg"
-                ),
+                fantia_url_factory.build(url="https://example.com/photo1.jpg", ext=".jpg"),
+                fantia_url_factory.build(url="https://example.com/photo2.jpg", ext=".jpg"),
             ],
         )
 
@@ -114,13 +115,13 @@ class TestFantiaDownloadService:
         mock_file: MagicMock,
         mock_fantia_client: MagicMock,
         config_repository: ConfigRepository,
-        fantia_test_data: "FantiaTestDataFactory",
+        fantia_file_factory: "FantiaFileFactory",
     ) -> None:
         """ファイルダウンロードテスト."""
         service = self._create_download_service(mock_fantia_client)
 
         # ファイルデータのモック
-        file_data = fantia_test_data.create_fantia_file(
+        file_data = fantia_file_factory.build(
             url="https://example.com/test.pdf",
             name="test.pdf",
         )
