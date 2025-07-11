@@ -3,10 +3,12 @@
 import os
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 from unittest.mock import MagicMock
 
 import pytest
+from polyfactory import Use
+from polyfactory.factories.pydantic_factory import ModelFactory
 
 from moro.config.settings import ConfigRepository
 from moro.modules.fantia import (
@@ -14,6 +16,8 @@ from moro.modules.fantia import (
     FantiaFile,
     FantiaPhotoGallery,
     FantiaPostData,
+    FantiaProduct,
+    FantiaText,
     FantiaURL,
 )
 
@@ -94,7 +98,100 @@ def mock_fantia_client() -> MagicMock:
     return mock
 
 
-# Fantia関連のテストデータファクトリ
+# Polyfactory factories for Fantia models
+class FantiaURLFactory(ModelFactory[FantiaURL]):
+    """Factory for FantiaURL."""
+
+    __model__ = FantiaURL
+
+    url = "https://example.com/image.jpg"
+    ext = ".jpg"
+
+
+class FantiaFileFactory(ModelFactory[FantiaFile]):
+    """Factory for FantiaFile."""
+
+    __model__ = FantiaFile
+
+    id = "file_001"
+    title = "Test File"
+    comment = "Test file comment"
+    url = "https://example.com/test.pdf"
+    name = "test.pdf"
+
+
+class FantiaPhotoGalleryFactory(ModelFactory[FantiaPhotoGallery]):
+    """Factory for FantiaPhotoGallery."""
+
+    __model__ = FantiaPhotoGallery
+
+    id = "gallery_001"
+    title = "Test Gallery"
+    comment = "Test gallery comment"
+    photos: ClassVar[Any] = Use(
+        lambda: [
+            FantiaURLFactory.build(url="https://example.com/image1.jpg", ext=".jpg"),
+            FantiaURLFactory.build(url="https://example.com/image2.png", ext=".png"),
+        ]
+    )
+
+
+class FantiaTextFactory(ModelFactory[FantiaText]):
+    """Factory for FantiaText."""
+
+    __model__ = FantiaText
+
+    id = "text_001"
+    title = "Test Text"
+    comment = "Test text comment"
+
+
+class FantiaProductFactory(ModelFactory[FantiaProduct]):
+    """Factory for FantiaProduct."""
+
+    __model__ = FantiaProduct
+
+    id = "product_001"
+    title = "Test Product"
+    comment = "Test product comment"
+    name = "test_product.zip"
+    url = "https://example.com/product.zip"
+
+
+class FantiaPostDataFactory(ModelFactory[FantiaPostData]):
+    """Factory for FantiaPostData."""
+
+    __model__ = FantiaPostData
+
+    id = "123456"
+    title = "Test Post Title"
+    creator_id = "789"
+    creator_name = "Test Creator"
+    contents: ClassVar[Any] = Use(lambda: [])
+    contents_photo_gallery: ClassVar[Any] = Use(lambda: [])
+    contents_files: ClassVar[Any] = Use(lambda: [])
+    contents_text: ClassVar[Any] = Use(lambda: [])
+    contents_products: ClassVar[Any] = Use(lambda: [])
+    posted_at = 1672531200  # 2023-01-01T00:00:00Z
+    converted_at = 1672531200
+    comment = "Test comment"
+    thumbnail = None
+
+
+class FantiaConfigFactory(ModelFactory[FantiaConfig]):
+    """Factory for FantiaConfig."""
+
+    __model__ = FantiaConfig
+
+    session_id = "test_session_id"
+    directory = "test/downloads"
+    download_thumb = False
+    max_retries = 3
+    timeout_connect = 5.0
+    concurrent_downloads = 2
+
+
+# Fantia関連のテストデータファクトリ (後方互換性のため)
 class FantiaTestDataFactory:
     """Fantia関連のテストデータを生成するファクトリクラス."""
 
@@ -108,75 +205,27 @@ class FantiaTestDataFactory:
     @staticmethod
     def create_fantia_config(**kwargs: Any) -> FantiaConfig:
         """FantiaConfigのテストデータを作成."""
-        defaults: dict[str, Any] = {
-            "session_id": "test_session_id",
-            "directory": "test/downloads",
-            "download_thumb": False,
-            "max_retries": 3,
-            "timeout_connect": 5.0,
-            "concurrent_downloads": 2,
-        }
-        defaults.update(kwargs)
-        return FantiaConfig(**defaults)
+        return FantiaConfigFactory.build(**kwargs)
 
     @staticmethod
     def create_fantia_post_data(**kwargs: Any) -> FantiaPostData:
         """FantiaPostDataのテストデータを作成."""
-        defaults: dict[str, Any] = {
-            "id": FantiaTestDataFactory.DEFAULT_POST_ID,
-            "title": "Test Post Title",
-            "creator_id": FantiaTestDataFactory.DEFAULT_CREATOR_ID,
-            "creator_name": FantiaTestDataFactory.DEFAULT_CREATOR_NAME,
-            "contents": [],
-            "contents_photo_gallery": [],
-            "contents_files": [],
-            "contents_text": [],
-            "contents_products": [],
-            "posted_at": FantiaTestDataFactory.DEFAULT_POSTED_AT,
-            "converted_at": FantiaTestDataFactory.DEFAULT_CONVERTED_AT,
-            "comment": "Test comment",
-            "thumbnail": None,
-        }
-        defaults.update(kwargs)
-        return FantiaPostData(**defaults)
+        return FantiaPostDataFactory.build(**kwargs)
 
     @staticmethod
     def create_fantia_file(**kwargs: Any) -> FantiaFile:
         """FantiaFileのテストデータを作成."""
-        defaults = {
-            "id": "file_001",
-            "title": "Test File",
-            "comment": "Test file comment",
-            "url": "https://example.com/test.pdf",
-            "name": "test.pdf",
-        }
-        defaults.update(kwargs)
-        return FantiaFile(**defaults)
+        return FantiaFileFactory.build(**kwargs)
 
     @staticmethod
     def create_fantia_photo_gallery(**kwargs: Any) -> FantiaPhotoGallery:
         """FantiaPhotoGalleryのテストデータを作成."""
-        defaults: dict[str, Any] = {
-            "id": "gallery_001",
-            "title": "Test Gallery",
-            "comment": "Test gallery comment",
-            "photos": [
-                FantiaURL(url="https://example.com/image1.jpg", ext=".jpg"),
-                FantiaURL(url="https://example.com/image2.png", ext=".png"),
-            ],
-        }
-        defaults.update(kwargs)
-        return FantiaPhotoGallery(**defaults)
+        return FantiaPhotoGalleryFactory.build(**kwargs)
 
     @staticmethod
     def create_fantia_url(**kwargs: Any) -> FantiaURL:
         """FantiaURLのテストデータを作成."""
-        defaults = {
-            "url": "https://example.com/image.jpg",
-            "ext": ".jpg",
-        }
-        defaults.update(kwargs)
-        return FantiaURL(**defaults)
+        return FantiaURLFactory.build(**kwargs)
 
     @staticmethod
     def create_post_json_data(**kwargs: Any) -> dict[str, Any]:
@@ -199,6 +248,49 @@ class FantiaTestDataFactory:
         return defaults
 
 
+# Polyfactory fixtures
+@pytest.fixture
+def fantia_url_factory() -> type[FantiaURLFactory]:
+    """FantiaURLFactory fixture."""
+    return FantiaURLFactory
+
+
+@pytest.fixture
+def fantia_file_factory() -> type[FantiaFileFactory]:
+    """FantiaFileFactory fixture."""
+    return FantiaFileFactory
+
+
+@pytest.fixture
+def fantia_photo_gallery_factory() -> type[FantiaPhotoGalleryFactory]:
+    """FantiaPhotoGalleryFactory fixture."""
+    return FantiaPhotoGalleryFactory
+
+
+@pytest.fixture
+def fantia_text_factory() -> type[FantiaTextFactory]:
+    """FantiaTextFactory fixture."""
+    return FantiaTextFactory
+
+
+@pytest.fixture
+def fantia_product_factory() -> type[FantiaProductFactory]:
+    """FantiaProductFactory fixture."""
+    return FantiaProductFactory
+
+
+@pytest.fixture
+def fantia_post_data_factory() -> type[FantiaPostDataFactory]:
+    """FantiaPostDataFactory fixture."""
+    return FantiaPostDataFactory
+
+
+@pytest.fixture
+def fantia_config_factory() -> type[FantiaConfigFactory]:
+    """FantiaConfigFactory fixture."""
+    return FantiaConfigFactory
+
+
 @pytest.fixture
 def fantia_test_data() -> FantiaTestDataFactory:
     """Fantiaテストデータファクトリのfixture."""
@@ -208,7 +300,7 @@ def fantia_test_data() -> FantiaTestDataFactory:
 @pytest.fixture
 def fantia_config() -> FantiaConfig:
     """標準的なFantiaConfigのfixture."""
-    return FantiaTestDataFactory.create_fantia_config()
+    return FantiaConfigFactory.build()
 
 
 @pytest.fixture
