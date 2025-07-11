@@ -45,20 +45,8 @@ class FantiaDownloadPostUseCase:
         post = parse_post(self.client, post_id)
         self._display_post_info(post)
 
-        # Create post directory
-        data_dir = self.file_service.create_post_directory(post)
-
-        # Save post comment if exists
-        if post.comment:
-            self.file_service.save_post_comment(data_dir, post.comment)
-
-        # Download photo galleries
-        for photo_gallery in post.contents_photo_gallery:
-            echo(f"Downloading photo gallery: {photo_gallery.title}")
-            content_dir = self.file_service.create_content_directory(
-                data_dir, photo_gallery.id, photo_gallery.title
-            )
-            self.download_service.download_photo_gallery(content_dir, photo_gallery)
+        echo(f"Downloading post ID: {post_id}")
+        self._download_single_post(post_id)
 
     def _display_post_info(self, post: FantiaPostData) -> None:
         """Display post information."""
@@ -68,6 +56,46 @@ class FantiaDownloadPostUseCase:
         echo(f"Post Contents: {len(post.contents)}")
         echo(f"Post Posted At: {post.posted_at}")
         echo(f"Post Converted At: {post.converted_at}")
+
+    def _download_single_post(self, post_id: str) -> None:
+        """Download a single post with all its content."""
+        post = parse_post(self.client, post_id)
+
+        # Create post directory
+        data_dir = self.file_service.create_post_directory(post)
+
+        # Save post comment if exists
+        if post.comment:
+            self.file_service.save_post_comment(data_dir, post.comment)
+
+        # Download thumbnail if enabled
+        if self.config.fantia.download_thumb and post.thumbnail:
+            logger.info(f"Downloading thumbnail: {post.thumbnail}")
+            self.download_service.download_thumbnail(data_dir, post)
+
+        # Download photo galleries
+        for photo_gallery in post.contents_photo_gallery:
+            echo(f"Downloading photo gallery: {photo_gallery.title}")
+            content_dir = self.file_service.create_content_directory(
+                data_dir, photo_gallery.id, photo_gallery.title
+            )
+            self.download_service.download_photo_gallery(content_dir, photo_gallery)
+
+        # Download files
+        for file in post.contents_files:
+            echo(f"Downloading file: {file.title}")
+            content_dir = self.file_service.create_content_directory(data_dir, file.id, file.title)
+            self.download_service.download_file(content_dir, file)
+
+        # Save text content
+        for text in post.contents_text:
+            echo(f"Saving text content: {text.title}")
+            self.file_service.save_text_content(data_dir, text)
+
+        # Save product content
+        for product in post.contents_products:
+            echo(f"Saving product content: {product.title}")
+            self.file_service.save_product_content(data_dir, product)
 
 
 @inject

@@ -2,7 +2,6 @@
 
 import os
 from datetime import datetime as dt
-from datetime import timedelta
 from logging import getLogger
 
 from injector import inject, singleton
@@ -41,9 +40,6 @@ class FantiaFileService:
             date = dt.fromtimestamp(post_data.posted_at)
         else:
             date = dt.fromtimestamp(post_data.converted_at)
-        # Round the converted_at timestamp to the nearest minute
-        if date.second >= 30:
-            date += timedelta(minutes=1)
         formatted_date = date.strftime("%Y%m%d%H%M")
         dir_name = sanitize_filename(f"{post_data.id}_{post_data.title}_{formatted_date}")
 
