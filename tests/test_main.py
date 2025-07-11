@@ -5,16 +5,14 @@ from unittest.mock import patch
 
 
 class TestMainModule:
-    """
-    Test cases for the __main__.py module.
+    """Test cases for the __main__.py module.
 
     This class contains tests to verify that the main module correctly
     initializes the CLI when executed as a module.
     """
 
     def test_cli_execution_when_main_module_imported(self) -> None:
-        """
-        Test that __main__.py executes the CLI entry point when imported.
+        """Test that __main__.py executes the CLI entry point when imported.
 
         This test verifies that importing the __main__ module triggers
         the CLI execution, which is the expected behavior when running
