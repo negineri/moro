@@ -68,6 +68,43 @@ This is a personal toolbox project (`moro`) that aggregates miscellaneous script
 - CLI entry point: `moro.cli.cli:cli`
 - Module can be run directly: `python -m moro`
 
+## Development Flow
+
+### Test-Driven Development (TDD)
+
+**MANDATORY**: All implementations must strictly follow TDD principles.
+
+#### TDD Cycle
+1. **Red**: Write a failing test first
+2. **Green**: Write minimal code to make the test pass
+3. **Refactor**: Improve the code while keeping tests green
+
+#### TODO List-Based Implementation
+
+Always create a TODO list before implementation and follow these steps:
+
+1. **Requirements Analysis**: Generate TODO list from initial requirements
+2. **Gradual Specification**: Clarify details for each TODO item
+3. **Test Category Classification**:
+   - `[ ] Happy Path`: Basic functionality verification
+   - `[ ] Error Cases`: Error handling scenarios
+   - `[ ] Edge Cases`: Boundary conditions
+   - `[ ] Integration`: Inter-component interactions
+
+#### Implementation Flow
+```
+Requirements → TODO List → Failing Test → Minimal Implementation → Refactor → Next TODO
+```
+
+#### Consultation Phase Dialogue
+
+For complex implementations or unclear requirements, use this gradual specification approach:
+
+1. **Requirements Analysis Dialogue**: Ask "What kind of...?" to clarify details
+2. **Existing Code Analysis**: Learn existing patterns before implementation
+3. **Scenario Expansion**: Consider happy path → error cases → edge cases
+4. **Gradual Detailing**: Purpose → Preconditions → Actions → Expected Results
+
 ## Implementation Best Practices
 
 ### Type Safety
