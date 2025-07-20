@@ -480,6 +480,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "python-dotenv" },
     { name = "selenium" },
+    { name = "tomli" },
 ]
 
 [package.dev-dependencies]
@@ -508,6 +509,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.11.3" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
     { name = "selenium", specifier = ">=4.34.0" },
+    { name = "tomli", specifier = ">=2.2.1" },
 ]
 
 [package.metadata.requires-dev]

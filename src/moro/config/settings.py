@@ -11,6 +11,7 @@ from os.path import dirname, expanduser, join
 from pathlib import Path
 from typing import Any, Optional
 
+import tomli
 from dotenv import load_dotenv
 from injector import inject, singleton
 from platformdirs import PlatformDirs
@@ -23,9 +24,48 @@ logger = logging.getLogger(__name__)
 
 ENV_PREFIX = "MORO_"
 pfd = PlatformDirs(appname="moro", appauthor="negineri")
+CONFIG_PATHS = [
+    "./settings.toml",
+    "/etc/moro/settings.toml",
+    expanduser("~/.config/moro/settings.toml"),
+]
 
 
-@singleton
+def create_app_config(
+    options: Optional[dict[str, Any]] = None, paths: list[str] = CONFIG_PATHS
+) -> "AppConfig":
+    """Factory method to create an instance of AppConfig with default values."""
+    if options is None:
+        options = {}
+
+    etc_options = load_config_files(paths=paths)
+    etc_options.update(options)
+
+    return AppConfig(**etc_options.get("settings", {}))
+
+
+def load_config_files(paths: list[str]) -> dict[str, Any]:
+    """
+    Load configuration from YAML files in the user's config directories.
+
+    Returns:
+        dict[str, Any]: Merged configuration data from all found files.
+    """
+    config_paths = [Path(path) for path in paths]
+
+    config_data: dict[str, Any] = {}
+    for path in config_paths:
+        if path.exists():
+            try:
+                with open(path, "rb") as f:
+                    data: dict[str, Any] = tomli.load(f) or {}
+                    config_data.update(data)
+            except Exception as e:
+                logger.warning(f"Failed to load configuration file {path}: {e}")
+
+    return config_data
+
+
 class AppConfig(BaseModel):
     """
     Global configuration class for the application.
@@ -140,7 +180,6 @@ class ConfigRepository(BaseModel):
         except ValidationError as e:
             logger.error(f"Configuration validation failed: {e}")
             raise ValueError(f"Invalid configuration: {e}") from e
-
 
     def validate_config(self) -> None:
         """
