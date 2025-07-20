@@ -39,6 +39,8 @@ def create_app_config(
         options = {}
 
     etc_options = load_config_files(paths=paths)
+    env_options = load_env_vars()
+    etc_options.update(env_options)
     etc_options.update(options)
 
     return AppConfig(**etc_options.get("settings", {}))
@@ -66,6 +68,58 @@ def load_config_files(paths: list[str]) -> dict[str, Any]:
     return config_data
 
 
+def load_env_vars() -> dict[str, Any]:
+    """
+    Load environment variables with MORO_SETTINGS_ prefix.
+
+    Supports both flat and nested configuration with arbitrary depth:
+    - MORO_SETTINGS_JOBS=16 -> settings.jobs
+    - MORO_SETTINGS_FANTIA__DOWNLOAD_THUMB=true -> settings.fantia.download_thumb
+    - MORO_SETTINGS_TEMP__HOGEHOGE__EXAMPLE=false -> settings.temp.hogehoge.example
+
+    Returns:
+        dict[str, Any]: Configuration data from environment variables.
+    """
+    import os
+
+    settings_prefix = f"{ENV_PREFIX}SETTINGS_"
+    config_data: dict[str, Any] = {}
+
+    def _ensure_settings_section() -> dict[str, Any]:
+        """Ensure settings section exists in config_data."""
+        if "settings" not in config_data:
+            config_data["settings"] = {}
+        return config_data["settings"]  # type: ignore[no-any-return]
+
+    for key, value in os.environ.items():
+        if not key.startswith(settings_prefix):
+            continue
+
+        # Remove the prefix and convert to lowercase
+        setting_key = key[len(settings_prefix) :].lower()
+
+        # Handle nested fields (e.g., FANTIA__DOWNLOAD_THUMB -> fantia.download_thumb)
+        if "__" in setting_key:
+            parts = setting_key.split("__")
+            settings = _ensure_settings_section()
+
+            # Navigate/create nested structure
+            current_dict = settings
+            for part in parts[:-1]:  # All parts except the last one
+                if part not in current_dict:
+                    current_dict[part] = {}
+                current_dict = current_dict[part]
+
+            # Set the final value
+            current_dict[parts[-1]] = value
+        else:
+            # Handle top-level fields
+            settings = _ensure_settings_section()
+            settings[setting_key] = value
+
+    return config_data
+
+
 class AppConfig(BaseModel):
     """
     Global configuration class for the application.
@@ -78,7 +132,7 @@ class AppConfig(BaseModel):
     user_data_dir: str = Field(default=pfd.user_data_dir)  # User data directory
     working_dir: str = Field(default=".")  # Working directory
 
-    model_config = {"extra": "forbid"}
+    fantia: FantiaConfig = Field(default_factory=FantiaConfig)  # Fantia-specific configuration
 
 
 @inject
