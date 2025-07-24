@@ -19,6 +19,8 @@ from injector import inject, singleton
 from pydantic import BaseModel, Field, field_validator
 from selenium import webdriver
 
+from moro.modules.common import CommonConfig
+
 logger = logging.getLogger(__name__)
 
 FANTIA_URL_RE = re.compile(r"(?:https?://(?:(?:www\.)?(?:fantia\.jp/(fanclubs|posts)/)))([0-9]+)")
@@ -78,6 +80,66 @@ class SessionIdProvider(ABC):
         pass
 
 
+class SeleniumSessionIdProvider(SessionIdProvider):
+    """Selenium-based SessionId provider that uses Chrome WebDriver to login to Fantia."""
+
+    def __init__(self, config: CommonConfig) -> None:
+        """Initialize the Selenium session ID provider.
+
+        Args:
+            config: CommonConfig instance for configuration.
+        """
+        self._user_data_dir = config.user_data_dir
+
+    def get_session_id(self) -> Optional[str]:
+        """Get session ID by performing Selenium-based login to Fantia.
+
+        Returns:
+            The session ID string if login successful, None otherwise.
+        """
+        try:
+            options = self._create_chrome_options()
+
+            with webdriver.Chrome(options=options) as driver:
+                driver.get(LOGIN_SIGNIN_URL)
+
+                # Wait for user to complete login manually
+                while True:
+                    parsed_url = urlparse(driver.current_url)
+                    if parsed_url.path == "/" and parsed_url.netloc == DOMAIN:
+                        # Successfully logged in, extract session_id from cookies
+                        cookies: list[dict[str, str]] = driver.get_cookies()  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
+
+                        for cookie in cookies:
+                            if cookie["name"] == "_session_id":
+                                logger.info("Successfully obtained session_id via Selenium")
+                                return str(cookie["value"])
+
+                        # session_id cookie not found
+                        logger.warning("Login successful but _session_id cookie not found")
+                        break
+
+        except Exception as e:
+            logger.error(f"Error during Selenium login: {e}")
+
+        return None
+
+    def _create_chrome_options(self) -> webdriver.ChromeOptions:
+        """Create Chrome options for the WebDriver.
+
+        Returns:
+            Configured ChromeOptions instance.
+        """
+        options = webdriver.ChromeOptions()
+
+        if self._user_data_dir:
+            makedirs(self._user_data_dir, exist_ok=True)
+            options.add_argument(f"--user-data-dir={self._user_data_dir}")
+
+        return options
+
+
+@singleton
 class FantiaConfig(BaseModel):
     """Configuration for the Fantia client."""
 

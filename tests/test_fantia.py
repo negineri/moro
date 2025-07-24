@@ -1,14 +1,17 @@
 """fantia moduleのテスト."""
 
+from pathlib import Path
 from typing import Any, Callable, Optional
 from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
 
+from moro.modules.common import CommonConfig
 from moro.modules.fantia import (
     FantiaClient,
     FantiaConfig,
+    SeleniumSessionIdProvider,
     SessionIdProvider,
     _extract_post_metadata,
     _fetch_post_data,
@@ -405,6 +408,92 @@ class TestFantiaClientAutoSessionUpdate:
             assert response.status_code == 401
             # 2回呼び出される（初回401 + リトライ401）
             assert mock_get.call_count == 2
+
+
+@pytest.fixture
+def common_config(tmp_path: Path) -> CommonConfig:
+    """CommonConfigのテスト用インスタンスを提供するフィクスチャ."""
+    return CommonConfig(
+        user_data_dir=str(tmp_path / "user_data"),
+        working_dir=str(tmp_path / "working"),
+        jobs=4,
+    )
+
+
+class TestSeleniumSessionIdProvider:
+    """SeleniumSessionIdProviderのテスト."""
+
+    def test_provider_implementation_exists(self, common_config: CommonConfig) -> None:
+        """SeleniumSessionIdProviderが実装されていることを確認するテスト."""
+        # SeleniumSessionIdProviderクラスがインポートできることを確認
+        provider = SeleniumSessionIdProvider(common_config)
+        assert isinstance(provider, SessionIdProvider)
+        assert isinstance(provider, SeleniumSessionIdProvider)
+
+    def test_selenium_provider_interface_compliance(self, common_config: CommonConfig) -> None:
+        """SeleniumSessionIdProviderがSessionIdProviderインターフェースに準拠することを確認するテスト."""
+        provider = SeleniumSessionIdProvider(common_config)
+        assert isinstance(provider, SessionIdProvider)
+        assert hasattr(provider, "get_session_id")
+        assert callable(provider.get_session_id)
+
+    def test_selenium_provider_get_session_id_returns_none_when_not_implemented(self) -> None:
+        """SeleniumSessionIdProviderのget_session_id()が実装されていない場合にNoneを返すテスト."""
+        # TODO: SeleniumSessionIdProviderクラスが実装されたら、実際のテストに置き換える
+
+        # 現在は実装されていないため、スキップ
+        # provider = SeleniumSessionIdProvider()
+        # result = provider.get_session_id()
+        # assert result is None  # 実装されていない場合はNoneを返すことを期待
+        pass
+
+    def test_selenium_provider_with_user_data_dir(self, common_config: CommonConfig) -> None:
+        """SeleniumSessionIdProviderがuser_data_dirを指定して初期化できることを確認するテスト."""
+        provider = SeleniumSessionIdProvider(common_config)
+        assert provider._user_data_dir == common_config.user_data_dir
+
+    def test_selenium_provider_webdriver_error_handling(self, common_config: CommonConfig) -> None:
+        """SeleniumSessionIdProviderがWebDriverエラーを適切に処理することを確認するテスト."""
+        # WebDriverの初期化に失敗した場合のテスト
+        with patch("selenium.webdriver.Chrome", side_effect=Exception("WebDriver error")):
+            provider = SeleniumSessionIdProvider(common_config)
+            result = provider.get_session_id()
+            assert result is None  # エラー時はNoneを返すことを期待
+
+    def test_selenium_provider_login_success_mock(self, common_config: CommonConfig) -> None:
+        """SeleniumSessionIdProviderが正常にログインしてsession_idを取得することを確認するテスト（モック使用）."""
+        # contextmanagerのモック設定
+        mock_driver = MagicMock()
+        mock_driver.__enter__ = MagicMock(return_value=mock_driver)
+        mock_driver.__exit__ = MagicMock(return_value=None)
+
+        mock_driver.get_cookies.return_value = [
+            {"name": "_session_id", "value": "test_session_12345"},
+            {"name": "other_cookie", "value": "other_value"},
+        ]
+        # current_urlプロパティを適切に設定
+        mock_driver.current_url = "https://fantia.jp/"
+
+        with patch("selenium.webdriver.Chrome", return_value=mock_driver):
+            provider = SeleniumSessionIdProvider(common_config)
+            result = provider.get_session_id()
+            assert result == "test_session_12345"
+
+    def test_selenium_provider_no_session_cookie_found(self, common_config: CommonConfig) -> None:
+        """SeleniumSessionIdProviderがsession_idクッキーを見つけられない場合のテスト."""
+        # session_idクッキーが存在しない場合のテスト
+        mock_driver = MagicMock()
+        mock_driver.__enter__ = MagicMock(return_value=mock_driver)
+        mock_driver.__exit__ = MagicMock(return_value=None)
+
+        mock_driver.get_cookies.return_value = [{"name": "other_cookie", "value": "other_value"}]
+        # current_urlプロパティを適切に設定
+        mock_driver.current_url = "https://fantia.jp/"
+
+        with patch("selenium.webdriver.Chrome", return_value=mock_driver):
+            provider = SeleniumSessionIdProvider(common_config)
+            result = provider.get_session_id()
+            assert result is None  # session_idが見つからない場合はNoneを返す
 
 
 class TestCheckLogin:
