@@ -21,6 +21,7 @@ dependencies = [
     "python-dotenv>=1.1.0",
     "selenium>=4.34.0",
     "tomli>=2.2.1",
+    "tomli-w>=1.2.0",
 ]
 
 [project.scripts]
@@ -119,6 +120,7 @@ dev = [
     "polyfactory>=2.18.0",
     "pytest>=8.3.5",
     "pytest-cov>=6.1.1",
+    "pytest-mock>=3.14.1",
     "ruff>=0.11.4",
     "tox>=4.25.0",
     "types-pyyaml>=6.0.12.20250402",

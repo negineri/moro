@@ -35,7 +35,7 @@ class FantiaAuthService:
         if check_login(self.client):
             return True
 
-        chrome_userdata_dir = os.path.join(self.config.app.user_data_dir, "chrome_userdata")
+        chrome_userdata_dir = os.path.join(self.config.common.user_data_dir, "chrome_userdata")
         return self._login_with_selenium(chrome_userdata_dir)
 
     def _login_with_selenium(self, chrome_userdata_dir: str) -> bool:

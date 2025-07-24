@@ -44,7 +44,7 @@ class FantiaFileService:
         dir_name = sanitize_filename(f"{post_data.id}_{post_data.title}_{formatted_date}")
 
         post_dir = os.path.join(
-            self.config.app.working_dir, "downloads", "fantia", post_data.creator_id, dir_name
+            self.config.common.working_dir, "downloads", "fantia", post_data.creator_id, dir_name
         )
 
         os.makedirs(post_dir, exist_ok=True)
@@ -130,4 +130,4 @@ class FantiaFileService:
         Returns:
             str: Base download directory path.
         """
-        return os.path.join(self.config.app.working_dir, "downloads", "fantia")
+        return os.path.join(self.config.common.working_dir, "downloads", "fantia")

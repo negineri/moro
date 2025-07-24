@@ -1,0 +1,16 @@
+[common.logging_config]
+disable_existing_loggers = false
+version = 1
+
+[common.logging_config.formatters.default]
+format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+[common.logging_config.handlers.console]
+class = "logging.StreamHandler"
+formatter = "default"
+level = "INFO"
+stream = "ext://sys.stdout"
+
+[common.logging_config.loggers.default]
+handlers = ["console"]
+level = "WARNING"

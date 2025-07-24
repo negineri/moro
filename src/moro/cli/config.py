@@ -1,14 +1,13 @@
 """Configuration management commands."""
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 import click
-import yaml
+import tomli_w
 
 from moro.cli._utils import AliasedGroup
-from moro.config.settings import ConfigRepository
-from moro.dependencies.container import create_injector
+from moro.config.settings import CONFIG_PATHS, ConfigRepository
 
 
 @click.group(cls=AliasedGroup)
@@ -20,21 +19,18 @@ def config() -> None:
 @config.command()
 def show() -> None:
     """Show current configuration."""
-    injector = create_injector()
-    config_repo = injector.get(ConfigRepository)
-    config_repo.load_all()
+    repo = ConfigRepository.create()
 
-    config_summary = config_repo.get_config_summary()
     click.echo("Current configuration:")
-    click.echo(yaml.dump(config_summary, default_flow_style=False))
+    click.echo(repo.model_dump_json(indent=2, exclude_unset=True))
 
 
 @config.command()
 @click.option(
     "--path",
     type=click.Path(),
-    default="./moro.yml",
-    help="Path to generate the configuration file (default: ./moro.yml)",
+    default="./settings.toml",
+    help="Path to generate the configuration file (default: ./settings.toml)",
 )
 @click.option(
     "--force",
@@ -51,33 +47,15 @@ def init(path: str, force: bool) -> None:
         return
 
     # Create default configuration
-    default_config: dict[str, Any] = {
-        "app": {
-            "jobs": 16,
-            "user_data_dir": "~/.local/share/moro",
-            "working_dir": ".",
-        },
-        "fantia": {
-            "session_id": None,
-            "directory": "downloads/fantia",
-            "download_thumb": False,
-            "priorize_webp": False,
-            "use_server_filenames": False,
-            "max_retries": 5,
-            "timeout_connect": 10.0,
-            "timeout_read": 30.0,
-            "timeout_write": 10.0,
-            "timeout_pool": 5.0,
-            "concurrent_downloads": 3,
-        },
-    }
+    repo = ConfigRepository.create()
+    default_config = repo.model_dump(exclude_unset=True)
 
     # Ensure directory exists
     config_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Write configuration file
-    with open(config_path, "w", encoding="utf-8") as f:
-        yaml.dump(default_config, f, default_flow_style=False, allow_unicode=True)
+    with open(config_path, "wb") as f:
+        tomli_w.dump(default_config, f)
 
     click.echo(f"Generated default configuration file: {config_path}")
 
@@ -93,14 +71,7 @@ def validate(config_file: Optional[str]) -> None:
     if config_file:
         # Validate specific configuration file
         try:
-            config_path = Path(config_file)
-            with open(config_path, encoding="utf-8") as f:
-                config_data = yaml.safe_load(f)
-
-            # Create temporary config repository to validate
-            temp_config = ConfigRepository()
-            temp_config.merge_config(config_data or {})
-            temp_config.validate_config()
+            _ = ConfigRepository.create(paths=[config_file])
 
             click.echo(f"Configuration file {config_file} is valid.")
         except Exception as e:
@@ -109,9 +80,7 @@ def validate(config_file: Optional[str]) -> None:
     else:
         # Validate current configuration
         try:
-            injector = create_injector()
-            config_repo = injector.get(ConfigRepository)
-            config_repo.load_all()
+            _ = ConfigRepository.create()
 
             click.echo("Current configuration is valid.")
         except Exception as e:
@@ -122,12 +91,6 @@ def validate(config_file: Optional[str]) -> None:
 @config.command()
 def paths() -> None:
     """Show configuration file search paths."""
-    injector = create_injector()
-    config_repo = injector.get(ConfigRepository)
-
     click.echo("Configuration files are searched in the following order:")
-
-    for i, path in enumerate(config_repo.get_config_paths(), 1):
-        exists = path.exists()
-        status = "✓" if exists else "✗"
-        click.echo(f"{i}. {status} {path}")
+    for i, path in enumerate(CONFIG_PATHS, 1):
+        click.echo(f"{i}. {path}")
