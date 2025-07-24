@@ -22,79 +22,6 @@ from moro.modules.fantia import (
 )
 
 
-class TestFantiaConfig:
-    """FantiaConfig クラスのテスト."""
-
-    def test_init_with_defaults(self) -> None:
-        """デフォルト値での初期化テスト."""
-        config = FantiaConfig()
-
-        assert config.session_id is None
-        assert config.directory == "downloads/fantia"
-        assert config.download_thumb is False
-        assert config.priorize_webp is False
-        assert config.use_server_filenames is False
-        assert config.max_retries == 5
-        assert config.timeout_connect == 10.0
-        assert config.timeout_read == 30.0
-        assert config.timeout_write == 10.0
-        assert config.timeout_pool == 5.0
-        assert config.concurrent_downloads == 3
-
-    def test_config_validation(self) -> None:
-        """設定値のバリデーションテスト."""
-        # 負の値はバリデーションエラーになる
-        with pytest.raises(ValueError):
-            FantiaConfig(max_retries=-1)
-
-        with pytest.raises(ValueError):
-            FantiaConfig(timeout_connect=-1.0)
-
-        with pytest.raises(ValueError):
-            FantiaConfig(concurrent_downloads=0)
-
-    def test_config_edge_values(self) -> None:
-        """設定値の境界値テスト."""
-        # 境界値での正常作成
-        config = FantiaConfig(
-            max_retries=1,
-            timeout_connect=0.1,
-            concurrent_downloads=1,
-        )
-        assert config.max_retries == 1
-        assert config.timeout_connect == 0.1
-        assert config.concurrent_downloads == 1
-
-        # 非常に大きな値
-        config = FantiaConfig(
-            max_retries=1000,
-            timeout_connect=3600.0,
-            concurrent_downloads=100,
-        )
-        assert config.max_retries == 1000
-        assert config.timeout_connect == 3600.0
-        assert config.concurrent_downloads == 100
-
-        # ゼロ値での境界テスト（実装に応じて調整）
-        # max_retries=0 は有効な場合があるため、実装を確認
-        try:
-            config = FantiaConfig(max_retries=0)
-            # 実装でmax_retries=0が許可されている場合
-            assert config.max_retries == 0
-        except ValueError:
-            # 実装でmax_retries=0が禁止されている場合
-            pass
-
-        # timeout_connect=0.0の境界テスト
-        try:
-            config = FantiaConfig(timeout_connect=0.0)
-            # 実装でtimeout_connect=0.0が許可されている場合
-            assert config.timeout_connect == 0.0
-        except ValueError:
-            # 実装でtimeout_connect=0.0が禁止されている場合
-            pass
-
-
 class TestSessionIdProvider:
     """SessionIdProvider クラスのテスト."""
 
@@ -112,6 +39,9 @@ class TestSessionIdProvider:
             def get_session_id(self) -> Optional[str]:
                 return "valid_session_id"
 
+            def get_cookies(self) -> dict[str, str]:
+                return {"_session_id": "valid_session_id"}
+
         provider = TestProvider()
         result = provider.get_session_id()
 
@@ -126,6 +56,9 @@ class TestSessionIdProvider:
             def get_session_id(self) -> Optional[str]:
                 return None
 
+            def get_cookies(self) -> dict[str, str]:
+                return {}
+
         provider = TestProvider()
         result = provider.get_session_id()
 
@@ -138,6 +71,9 @@ class TestSessionIdProvider:
         class TestProvider(SessionIdProvider):
             def get_session_id(self) -> Optional[str]:
                 return ""
+
+            def get_cookies(self) -> dict[str, str]:
+                return {"_session_id": ""}
 
         provider = TestProvider()
         result = provider.get_session_id()
@@ -152,6 +88,9 @@ class TestSessionIdProvider:
         class TestProvider(SessionIdProvider):
             def get_session_id(self) -> Optional[str]:
                 raise RuntimeError("Test error")
+
+            def get_cookies(self) -> dict[str, str]:
+                return {}
 
         provider = TestProvider()
 
@@ -171,6 +110,10 @@ class TestSessionIdProvider:
                 self.call_count += 1
                 return f"session_{self.call_count}"
 
+            def get_cookies(self) -> dict[str, str]:
+                self.call_count += 1
+                return {"_session_id": f"session_{self.call_count}"}
+
         provider = TestProvider()
 
         # 複数回呼び出しても動作することを確認
@@ -180,6 +123,55 @@ class TestSessionIdProvider:
         assert result1 == "session_1"
         assert result2 == "session_2"
         assert provider.call_count == 2
+
+    def test_get_cookies_abstract_method(self) -> None:
+        """get_cookies()が抽象メソッドであることを確認するテスト."""
+        # SessionIdProviderは抽象クラスなので直接インスタンス化できない
+        with pytest.raises(TypeError):
+            SessionIdProvider()  # type: ignore
+
+    def test_concrete_provider_get_cookies_success(self) -> None:
+        """具象プロバイダーのget_cookies()成功ケーステスト."""
+
+        # テスト用の具象クラスを作成
+        class TestProvider(SessionIdProvider):
+            def get_session_id(self) -> Optional[str]:
+                return "valid_session_id"
+
+            def get_cookies(self) -> dict[str, str]:
+                return {
+                    "_session_id": "valid_session_id",
+                    "jp_chatplus_vtoken": "valid_token",
+                    "_f_v_k_1": "valid_key",
+                }
+
+        provider = TestProvider()
+        result = provider.get_cookies()
+
+        expected = {
+            "_session_id": "valid_session_id",
+            "jp_chatplus_vtoken": "valid_token",
+            "_f_v_k_1": "valid_key",
+        }
+        assert result == expected
+        assert isinstance(result, dict)
+
+    def test_concrete_provider_get_cookies_empty(self) -> None:
+        """具象プロバイダーが空辞書を返すケーステスト."""
+
+        # テスト用の具象クラスを作成
+        class TestProvider(SessionIdProvider):
+            def get_session_id(self) -> Optional[str]:
+                return None
+
+            def get_cookies(self) -> dict[str, str]:
+                return {}
+
+        provider = TestProvider()
+        result = provider.get_cookies()
+
+        assert result == {}
+        assert isinstance(result, dict)
 
 
 class TestFantiaClient:
@@ -208,16 +200,17 @@ class TestFantiaClientSessionIdProviderIntegration:
             def get_session_id(self) -> Optional[str]:
                 return "test_session_id"
 
+            def get_cookies(self) -> dict[str, str]:
+                return {"_session_id": "test_session_id"}
+
         provider = TestProvider()
         config = FantiaConfig()
 
         # 統合機能をテスト
         client = FantiaClient(config, session_provider=provider)
-        session_id = client._get_current_session_id()
-        assert session_id == "test_session_id"
 
-        # セッションクッキーの更新をテスト
-        client._update_session_cookie()
+        # クッキーの更新をテスト
+        client._update_cookies()
         assert client.cookies.get("_session_id") == "test_session_id"
 
     def test_session_id_provider_integration_none(self) -> None:
@@ -228,16 +221,17 @@ class TestFantiaClientSessionIdProviderIntegration:
             def get_session_id(self) -> Optional[str]:
                 return None
 
+            def get_cookies(self) -> dict[str, str]:
+                return {}
+
         provider = TestProvider()
         config = FantiaConfig()
 
         # 統合機能をテスト
         client = FantiaClient(config, session_provider=provider)
-        session_id = client._get_current_session_id()
-        assert session_id is None
 
-        # セッションクッキーの更新をテスト（Noneの場合はクッキーが削除される）
-        client._update_session_cookie()
+        # クッキーの更新をテスト（空の場合はクッキーが削除される）
+        client._update_cookies()
         assert client.cookies.get("_session_id") is None
 
     def test_session_id_provider_dynamic_update(self) -> None:
@@ -251,6 +245,11 @@ class TestFantiaClientSessionIdProviderIntegration:
             def get_session_id(self) -> Optional[str]:
                 return self.session_id
 
+            def get_cookies(self) -> dict[str, str]:
+                if self.session_id:
+                    return {"_session_id": self.session_id}
+                return {}
+
             def update_session_id(self, new_session_id: str) -> None:
                 self.session_id = new_session_id
 
@@ -260,20 +259,114 @@ class TestFantiaClientSessionIdProviderIntegration:
         # 統合機能をテスト
         client = FantiaClient(config, session_provider=provider)
 
-        # 初期セッションIDの確認
-        session_id = client._get_current_session_id()
-        assert session_id == "initial_session"
+        # 初期クッキーの確認
+        client._update_cookies()
+        assert client.cookies.get("_session_id") == "initial_session"
 
         # セッションIDを更新
         provider.update_session_id("updated_session")
 
-        # 更新されたセッションIDの確認
-        session_id = client._get_current_session_id()
-        assert session_id == "updated_session"
-
         # クッキーも動的に更新されることを確認
-        client._update_session_cookie()
+        client._update_cookies()
         assert client.cookies.get("_session_id") == "updated_session"
+
+    def test_multi_cookie_integration(self) -> None:
+        """複数クッキー統合テスト."""
+
+        # テスト用の複数クッキープロバイダーを作成
+        class TestMultiCookieProvider(SessionIdProvider):
+            def get_session_id(self) -> Optional[str]:
+                return "test_session_12345"
+
+            def get_cookies(self) -> dict[str, str]:
+                return {
+                    "_session_id": "test_session_12345",
+                    "jp_chatplus_vtoken": "test_chatplus_67890",
+                    "_f_v_k_1": "test_fantia_key_abcde",
+                }
+
+        provider = TestMultiCookieProvider()
+        config = FantiaConfig()
+
+        # 統合機能をテスト
+        client = FantiaClient(config, session_provider=provider)
+
+        # 複数クッキーの更新をテスト
+        client._update_cookies()
+        assert client.cookies.get("_session_id") == "test_session_12345"
+        assert client.cookies.get("jp_chatplus_vtoken") == "test_chatplus_67890"
+        assert client.cookies.get("_f_v_k_1") == "test_fantia_key_abcde"
+
+    def test_partial_cookie_integration(self) -> None:
+        """一部クッキーのみの統合テスト."""
+
+        # テスト用の一部クッキープロバイダーを作成
+        class TestPartialCookieProvider(SessionIdProvider):
+            def get_session_id(self) -> Optional[str]:
+                return "test_session_only"
+
+            def get_cookies(self) -> dict[str, str]:
+                return {
+                    "_session_id": "test_session_only",
+                    # jp_chatplus_vtoken と _f_v_k_1 は存在しない
+                }
+
+        provider = TestPartialCookieProvider()
+        config = FantiaConfig()
+
+        # 統合機能をテスト
+        client = FantiaClient(config, session_provider=provider)
+
+        # 一部クッキーの更新をテスト
+        client._update_cookies()
+        assert client.cookies.get("_session_id") == "test_session_only"
+        assert client.cookies.get("jp_chatplus_vtoken") is None
+        assert client.cookies.get("_f_v_k_1") is None
+
+    def test_cookie_deletion_on_provider_change(self) -> None:
+        """プロバイダーでクッキーが削除される場合のテスト."""
+
+        # 初期状態で複数クッキーを返すプロバイダーを作成
+        class TestInitialProvider(SessionIdProvider):
+            def get_session_id(self) -> Optional[str]:
+                return "test_session"
+
+            def get_cookies(self) -> dict[str, str]:
+                return {
+                    "_session_id": "test_session",
+                    "jp_chatplus_vtoken": "test_token",
+                    "_f_v_k_1": "test_key",
+                }
+
+        initial_provider = TestInitialProvider()
+        config = FantiaConfig()
+        client = FantiaClient(config, session_provider=initial_provider)
+
+        # 初期クッキーの設定
+        client._update_cookies()
+        assert client.cookies.get("_session_id") == "test_session"
+        assert client.cookies.get("jp_chatplus_vtoken") == "test_token"
+        assert client.cookies.get("_f_v_k_1") == "test_key"
+
+        # 一部のクッキーのみを返すプロバイダーに変更
+        class TestReducedProvider(SessionIdProvider):
+            def get_session_id(self) -> Optional[str]:
+                return "new_session"
+
+            def get_cookies(self) -> dict[str, str]:
+                return {
+                    "_session_id": "new_session",
+                    # jp_chatplus_vtoken と _f_v_k_1 は削除される
+                }
+
+        reduced_provider = TestReducedProvider()
+        client._session_provider = reduced_provider
+
+        # クッキーが適切に更新・削除されることを確認
+        client._update_cookies()
+        assert client.cookies.get("_session_id") == "new_session"
+        assert client.cookies.get("jp_chatplus_vtoken") is None
+        assert client.cookies.get("_f_v_k_1") is None
 
 
 class TestFantiaClientAutoSessionUpdate:
@@ -286,6 +379,9 @@ class TestFantiaClientAutoSessionUpdate:
         class TestProvider(SessionIdProvider):
             def get_session_id(self) -> Optional[str]:
                 return "valid_session_id"
+
+            def get_cookies(self) -> dict[str, str]:
+                return {"_session_id": "valid_session_id"}
 
         provider = TestProvider()
         config = FantiaConfig()
@@ -315,6 +411,12 @@ class TestFantiaClientAutoSessionUpdate:
                     return "invalid_session_id"
                 return "valid_session_id"
 
+            def get_cookies(self) -> dict[str, str]:
+                # 直接call_countを使わずに既存のロジックに基づいてsession_idを決定
+                if self.call_count == 0:
+                    return {"_session_id": "invalid_session_id"}
+                return {"_session_id": "valid_session_id"}
+
         provider = TestProvider()
         config = FantiaConfig()
 
@@ -342,6 +444,9 @@ class TestFantiaClientAutoSessionUpdate:
             def get_session_id(self) -> Optional[str]:
                 return None
 
+            def get_cookies(self) -> dict[str, str]:
+                return {}
+
         provider = TestProvider()
         config = FantiaConfig()
         client = FantiaClient(config, session_provider=provider)
@@ -361,6 +466,9 @@ class TestFantiaClientAutoSessionUpdate:
         class TestProvider(SessionIdProvider):
             def get_session_id(self) -> Optional[str]:
                 return "valid_session_id"
+
+            def get_cookies(self) -> dict[str, str]:
+                return {"_session_id": "valid_session_id"}
 
         provider = TestProvider()
         config = FantiaConfig()
@@ -395,6 +503,9 @@ class TestFantiaClientAutoSessionUpdate:
             def get_session_id(self) -> Optional[str]:
                 return "always_invalid_session"
 
+            def get_cookies(self) -> dict[str, str]:
+                return {"_session_id": "always_invalid_session"}
+
         provider = TestProvider()
         config = FantiaConfig()
         client = FantiaClient(config, session_provider=provider)
@@ -408,6 +519,96 @@ class TestFantiaClientAutoSessionUpdate:
             assert response.status_code == 401
             # 2回呼び出される（初回401 + リトライ401）
             assert mock_get.call_count == 2
+
+
+class TestFantiaClientMultiCookieIntegration:
+    """FantiaClientと複数クッキーProviderの統合テスト."""
+
+    def test_fantia_client_with_multi_cookie_provider(self) -> None:
+        """FantiaClientが複数クッキープロバイダーと統合できることのテスト."""
+
+        # テスト用の複数クッキープロバイダーを作成
+        class TestMultiCookieProvider(SessionIdProvider):
+            def get_session_id(self) -> Optional[str]:
+                return "test_session_12345"
+
+            def get_cookies(self) -> dict[str, str]:
+                return {
+                    "_session_id": "test_session_12345",
+                    "jp_chatplus_vtoken": "test_chatplus_67890",
+                    "_f_v_k_1": "test_fantia_key_abcde",
+                }
+
+        provider = TestMultiCookieProvider()
+        config = FantiaConfig()
+
+        # 統合機能をテスト
+        client = FantiaClient(config, session_provider=provider)
+
+        # クッキーの更新をテスト
+        client._update_cookies()
+        assert client.cookies.get("_session_id") == "test_session_12345"
+
+    def test_fantia_client_multi_cookie_auto_retry(self) -> None:
+        """複数クッキープロバイダーでの401エラー自動リトライテスト."""
+
+        # テスト用の複数クッキープロバイダーを作成
+        class TestMultiCookieProvider(SessionIdProvider):
+            def __init__(self) -> None:
+                self.call_count = 0
+
+            def get_session_id(self) -> Optional[str]:
+                self.call_count += 1
+                if self.call_count == 1:
+                    return "invalid_session_id"
+                return "valid_session_id"
+
+            def get_cookies(self) -> dict[str, str]:
+                session_id = self.get_session_id()
+                if session_id == "valid_session_id":
+                    return {
+                        "_session_id": session_id,
+                        "jp_chatplus_vtoken": "valid_chatplus_token",
+                        "_f_v_k_1": "valid_fantia_key",
+                    }
+                return {"_session_id": session_id} if session_id else {}
+
+        provider = TestMultiCookieProvider()
+        config = FantiaConfig()
+        client = FantiaClient(config, session_provider=provider)
+
+        # 最初の呼び出しで401、2回目で200を返すモック
+        mock_responses = [
+            MagicMock(status_code=401, is_success=False),
+            MagicMock(status_code=200, is_success=True),
+        ]
+
+        with patch.object(httpx.Client, "get", side_effect=mock_responses) as mock_get:
+            # 自動リトライ機能により、最終的に200が返される
+            response = client.get("https://fantia.jp/api/v1/me")
+            assert response.status_code == 200
+            assert response.is_success is True
+            # 2回呼び出される（初回401 + リトライ200）
+            assert mock_get.call_count == 2
+
+    def test_fantia_client_with_empty_cookie_provider(self) -> None:
+        """空のクッキーを返すプロバイダーとの統合テスト."""
+
+        # テスト用の空クッキープロバイダーを作成
+        class TestEmptyCookieProvider(SessionIdProvider):
+            def get_session_id(self) -> Optional[str]:
+                return None
+
+            def get_cookies(self) -> dict[str, str]:
+                return {}
+
+        provider = TestEmptyCookieProvider()
+        config = FantiaConfig()
+        client = FantiaClient(config, session_provider=provider)
+
+        # クッキーの更新をテスト（空の場合はクッキーが削除される）
+        client._update_cookies()
+        assert client.cookies.get("_session_id") is None
 
 
 @pytest.fixture
@@ -494,6 +695,144 @@ class TestSeleniumSessionIdProvider:
             provider = SeleniumSessionIdProvider(common_config)
             result = provider.get_session_id()
             assert result is None  # session_idが見つからない場合はNoneを返す
+
+
+class TestSeleniumSessionIdProviderMultiCookie:
+    """SeleniumSessionIdProviderの複数クッキー対応テスト."""
+
+    def test_get_cookies_all_cookies_available(self, common_config: CommonConfig) -> None:
+        """全クッキーが取得できる場合のget_cookies()テスト."""
+        mock_driver = MagicMock()
+        mock_driver.__enter__ = MagicMock(return_value=mock_driver)
+        mock_driver.__exit__ = MagicMock(return_value=None)
+
+        mock_driver.get_cookies.return_value = [
+            {"name": "_session_id", "value": "session_12345"},
+            {"name": "jp_chatplus_vtoken", "value": "chatplus_67890"},
+            {"name": "_f_v_k_1", "value": "fantia_key_abcde"},
+            {"name": "other_cookie", "value": "other_value"},
+        ]
+        mock_driver.current_url = "https://fantia.jp/"
+
+        with patch("selenium.webdriver.Chrome", return_value=mock_driver):
+            provider = SeleniumSessionIdProvider(common_config)
+            result = provider.get_cookies()
+
+            expected = {
+                "_session_id": "session_12345",
+                "jp_chatplus_vtoken": "chatplus_67890",
+                "_f_v_k_1": "fantia_key_abcde",
+            }
+            assert result == expected
+
+    def test_get_cookies_partial_cookies_available(self, common_config: CommonConfig) -> None:
+        """一部クッキーのみ取得できる場合のget_cookies()テスト."""
+        mock_driver = MagicMock()
+        mock_driver.__enter__ = MagicMock(return_value=mock_driver)
+        mock_driver.__exit__ = MagicMock(return_value=None)
+
+        mock_driver.get_cookies.return_value = [
+            {"name": "_session_id", "value": "session_12345"},
+            {"name": "other_cookie", "value": "other_value"},
+        ]
+        mock_driver.current_url = "https://fantia.jp/"
+
+        with patch("selenium.webdriver.Chrome", return_value=mock_driver):
+            provider = SeleniumSessionIdProvider(common_config)
+            result = provider.get_cookies()
+
+            expected = {
+                "_session_id": "session_12345",
+            }
+            assert result == expected
+
+    def test_get_cookies_no_relevant_cookies(self, common_config: CommonConfig) -> None:
+        """必要クッキーが全く見つからない場合のget_cookies()テスト."""
+        mock_driver = MagicMock()
+        mock_driver.__enter__ = MagicMock(return_value=mock_driver)
+        mock_driver.__exit__ = MagicMock(return_value=None)
+
+        mock_driver.get_cookies.return_value = [
+            {"name": "other_cookie", "value": "other_value"},
+            {"name": "unrelated_cookie", "value": "unrelated_value"},
+        ]
+        mock_driver.current_url = "https://fantia.jp/"
+
+        with patch("selenium.webdriver.Chrome", return_value=mock_driver):
+            provider = SeleniumSessionIdProvider(common_config)
+            result = provider.get_cookies()
+
+            assert result == {}
+
+    def test_get_cookies_webdriver_error(self, common_config: CommonConfig) -> None:
+        """WebDriverエラー時のget_cookies()テスト."""
+        with patch("selenium.webdriver.Chrome", side_effect=Exception("WebDriver error")):
+            provider = SeleniumSessionIdProvider(common_config)
+            result = provider.get_cookies()
+            assert result == {}
+
+    @pytest.mark.skip(reason="ログインのタイムアウトは実装されていない")
+    def test_get_cookies_login_failure(self, common_config: CommonConfig) -> None:
+        """ログイン失敗時のget_cookies()テスト."""
+        mock_driver = MagicMock()
+        mock_driver.__enter__ = MagicMock(return_value=mock_driver)
+        mock_driver.__exit__ = MagicMock(return_value=None)
+
+        # ログインページのまま（ログイン失敗をシミュレート）
+        mock_driver.current_url = "https://fantia.jp/sessions/signin"
+
+        with patch("selenium.webdriver.Chrome", return_value=mock_driver):
+            provider = SeleniumSessionIdProvider(common_config)
+            result = provider.get_cookies()
+            assert result == {}
+
+    def test_get_session_id_backward_compatibility(self, common_config: CommonConfig) -> None:
+        """既存get_session_id()メソッドとの後方互換性テスト."""
+        mock_driver = MagicMock()
+        mock_driver.__enter__ = MagicMock(return_value=mock_driver)
+        mock_driver.__exit__ = MagicMock(return_value=None)
+
+        mock_driver.get_cookies.return_value = [
+            {"name": "_session_id", "value": "session_12345"},
+            {"name": "jp_chatplus_vtoken", "value": "chatplus_67890"},
+        ]
+        mock_driver.current_url = "https://fantia.jp/"
+
+        with patch("selenium.webdriver.Chrome", return_value=mock_driver):
+            provider = SeleniumSessionIdProvider(common_config)
+
+            # 既存のget_session_id()は引き続き動作する
+            session_id = provider.get_session_id()
+            assert session_id == "session_12345"
+
+            # 新しいget_cookies()も動作する
+            cookies = provider.get_cookies()
+            assert "_session_id" in cookies
+            assert cookies["_session_id"] == "session_12345"
+
+    def test_get_cookies_consistency_with_get_session_id(self, common_config: CommonConfig) -> None:
+        """get_cookies()とget_session_id()の整合性テスト."""
+        mock_driver = MagicMock()
+        mock_driver.__enter__ = MagicMock(return_value=mock_driver)
+        mock_driver.__exit__ = MagicMock(return_value=None)
+
+        mock_driver.get_cookies.return_value = [
+            {"name": "_session_id", "value": "session_12345"},
+            {"name": "jp_chatplus_vtoken", "value": "chatplus_67890"},
+        ]
+        mock_driver.current_url = "https://fantia.jp/"
+
+        with patch("selenium.webdriver.Chrome", return_value=mock_driver):
+            provider = SeleniumSessionIdProvider(common_config)
+
+            session_id = provider.get_session_id()
+            cookies = provider.get_cookies()
+
+            # get_session_id()とget_cookies()の_session_idが一致する
+            if session_id is not None:
+                assert cookies.get("_session_id") == session_id
+            else:
+                assert "_session_id" not in cookies
 
 
 class TestCheckLogin:

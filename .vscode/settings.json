@@ -6,7 +6,7 @@
         }
     },
     "python.analysis.ignore": [
-        "tests/test_*.py"
+        "tests/**/test_*.py"
     ],
     "python.testing.pytestArgs": [
         "tests"

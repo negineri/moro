@@ -71,11 +71,14 @@ class SessionIdProvider(ABC):
     """Abstract base class for providing Fantia session IDs."""
 
     @abstractmethod
-    def get_session_id(self) -> Optional[str]:
-        """Get the current session ID.
+    def get_cookies(self) -> dict[str, str]:
+        """Get all Fantia-related cookies.
 
         Returns:
-            The session ID string if available, None otherwise.
+            Dictionary containing cookies. May include:
+            - _session_id: Main session identifier
+            - jp_chatplus_vtoken: Chat plus token
+            - _f_v_k_1: Fantia verification key
         """
         pass
 
@@ -91,12 +94,18 @@ class SeleniumSessionIdProvider(SessionIdProvider):
         """
         self._user_data_dir = config.user_data_dir
 
-    def get_session_id(self) -> Optional[str]:
-        """Get session ID by performing Selenium-based login to Fantia.
+    def get_cookies(self) -> dict[str, str]:
+        """Get all Fantia-related cookies by performing Selenium-based login.
 
         Returns:
-            The session ID string if login successful, None otherwise.
+            Dictionary containing available cookies. May include:
+            - _session_id: Main session identifier
+            - jp_chatplus_vtoken: Chat plus token
+            - _f_v_k_1: Fantia verification key
         """
+        target_cookies = ["_session_id", "jp_chatplus_vtoken", "_f_v_k_1"]
+        result: dict[str, str] = {}
+
         try:
             options = self._create_chrome_options()
 
@@ -107,22 +116,25 @@ class SeleniumSessionIdProvider(SessionIdProvider):
                 while True:
                     parsed_url = urlparse(driver.current_url)
                     if parsed_url.path == "/" and parsed_url.netloc == DOMAIN:
-                        # Successfully logged in, extract session_id from cookies
+                        # Successfully logged in, extract target cookies
                         cookies: list[dict[str, str]] = driver.get_cookies()  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
 
                         for cookie in cookies:
-                            if cookie["name"] == "_session_id":
-                                logger.info("Successfully obtained session_id via Selenium")
-                                return str(cookie["value"])
+                            if cookie["name"] in target_cookies:
+                                result[cookie["name"]] = str(cookie["value"])
 
-                        # session_id cookie not found
-                        logger.warning("Login successful but _session_id cookie not found")
+                        if result:
+                            cookie_names = list(result.keys())
+                            count = len(result)
+                            logger.info(f"Obtained {count} cookies via Selenium: {cookie_names}")
+                        else:
+                            logger.warning("Login successful but no target cookies found")
                         break
 
         except Exception as e:
             logger.error(f"Error during Selenium login: {e}")
 
-        return None
+        return result
 
     def _create_chrome_options(self) -> webdriver.ChromeOptions:
         """Create Chrome options for the WebDriver.
@@ -221,46 +233,46 @@ class FantiaClient(httpx.Client):
 
         super().__init__(**options)
 
-    def _get_current_session_id(self) -> Optional[str]:
-        """Get the current session ID from the provider if available."""
+    def _update_cookies(self) -> None:
+        """Update all cookies with current values from the provider."""
         if self._session_provider:
-            return self._session_provider.get_session_id()
-        return None
+            cookies = self._session_provider.get_cookies()
 
-    def _update_session_cookie(self) -> None:
-        """Update the session cookie with the current session ID from the provider."""
-        if self._session_provider:
-            session_id = self._session_provider.get_session_id()
-            if session_id:
-                self.cookies.set("_session_id", session_id, domain=DOMAIN)
-            else:
-                # Remove session cookie if no session_id is available
-                if "_session_id" in self.cookies:
-                    self.cookies.delete("_session_id", domain=DOMAIN)
+            # Define target cookies that should be managed
+            target_cookies = ["_session_id", "jp_chatplus_vtoken", "_f_v_k_1"]
+
+            for cookie_name in target_cookies:
+                if cookie_name in cookies:
+                    # Set the cookie if it exists in provider
+                    self.cookies.set(cookie_name, cookies[cookie_name], domain=DOMAIN)
+                else:
+                    # Remove the cookie if it doesn't exist in provider
+                    if cookie_name in self.cookies:
+                        self.cookies.delete(cookie_name, domain=DOMAIN)
 
     def get(self, url: Union[httpx.URL, str], **kwargs: Any) -> httpx.Response:
-        """Override get method to automatically retry with updated session_id on 401 errors."""
+        """Override get method to automatically retry with updated cookies on 401 errors."""
         # First attempt
         response = super().get(url, **kwargs)
 
         # Check if we got a 401 Unauthorized and have a session provider
         if response.status_code == 401 and self._session_provider is not None:
-            logger.info("Received 401 Unauthorized, attempting to refresh session_id")
+            logger.info("Received 401 Unauthorized, attempting to refresh cookies")
 
-            # Try to get a new session_id from the provider
-            new_session_id = self._session_provider.get_session_id()
-            if new_session_id:
-                # Update the session cookie
-                self.cookies.set("_session_id", new_session_id, domain=DOMAIN)
-                logger.info("Updated session_id, retrying request")
+            # Try to get new cookies from the provider
+            new_cookies = self._session_provider.get_cookies()
+            if new_cookies.get("_session_id"):
+                # Update all cookies
+                self._update_cookies()
+                logger.info("Updated cookies, retrying request")
 
-                # Retry the request once with the new session_id
+                # Retry the request once with the new cookies
                 response = super().get(url, **kwargs)
 
                 if response.status_code == 401:
-                    logger.warning("Request still failed after session_id refresh")
+                    logger.warning("Request still failed after cookie refresh")
                 else:
-                    logger.info("Request succeeded after session_id refresh")
+                    logger.info("Request succeeded after cookie refresh")
             else:
                 logger.warning("Unable to get new session_id from provider")
 

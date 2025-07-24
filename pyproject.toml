@@ -3,9 +3,7 @@ name = "moro"
 version = "0.3.0"
 description = "Add your description here"
 readme = "README.md"
-authors = [
-    { name = "negineri", email = "negineri@sfc.wide.ad.jp" }
-]
+authors = [{ name = "negineri", email = "negineri@sfc.wide.ad.jp" }]
 requires-python = ">=3.9"
 dependencies = [
     "beautifulsoup4>=4.12.0",
@@ -34,11 +32,11 @@ build-backend = "hatchling.build"
 [tool.mypy]
 strict = true
 exclude = [
-    "tests/",         # Optional: Skip if using stubs/mocks
+    "tests/", # Optional: Skip if using stubs/mocks
     "build/",
     "dist/",
     "docs/",
-    "temp/"
+    "temp/",
 ]
 plugins = [
     # "pydantic.mypy"  # If you're using pydantic
@@ -47,37 +45,32 @@ plugins = [
 [tool.ruff]
 line-length = 100
 fix = true
-exclude = [
-    "build",
-    "dist",
-    ".venv",
-    "tests/mocks"
-]
+exclude = ["build", "dist", ".venv", "tests/mocks"]
 src = ["app", "src"]
 unsafe-fixes = false
 
 [tool.ruff.lint]
 select = [
-    "E",    # pycodestyle (errors)
-    "F",    # pyflakes
-    "B",    # flake8-bugbear
-    "I",    # isort
-    "UP",   # pyupgrade
-    "S",    # flake8-bandit (security)
-    "C4",   # flake8-comprehensions
-    "N",    # pep8-naming
-    "D",    # pydocstyle
-    "T20",  # flake8-print (disallow print)
-    "RET",  # flake8-return
-    "A",    # flake8-builtins
-    "RUF",  # Ruff-specific rules
+    "E",   # pycodestyle (errors)
+    "F",   # pyflakes
+    "B",   # flake8-bugbear
+    "I",   # isort
+    "UP",  # pyupgrade
+    "S",   # flake8-bandit (security)
+    "C4",  # flake8-comprehensions
+    "N",   # pep8-naming
+    "D",   # pydocstyle
+    "T20", # flake8-print (disallow print)
+    "RET", # flake8-return
+    "A",   # flake8-builtins
+    "RUF", # Ruff-specific rules
 ]
 ignore = [
     "D211", # D211 conflicts with D203
     "D212", # D212 conflicts with D213
     # "D100",  # Missing docstring in public module
     # "D104",  # Missing docstring in public package
-    "D107",  # Missing docstring in __init__
+    "D107",   # Missing docstring in __init__
     "RUF002", # 日本語コメントの際に邪魔
     "RUF003", # 日本語コメントの際に邪魔
     "D415",
