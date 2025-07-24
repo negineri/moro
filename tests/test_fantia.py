@@ -1,6 +1,6 @@
 """fantia moduleのテスト."""
 
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -9,6 +9,7 @@ import pytest
 from moro.modules.fantia import (
     FantiaClient,
     FantiaConfig,
+    SessionIdProvider,
     _extract_post_metadata,
     _fetch_post_data,
     _parse_post_contents,
@@ -91,6 +92,93 @@ class TestFantiaConfig:
             pass
 
 
+class TestSessionIdProvider:
+    """SessionIdProvider クラスのテスト."""
+
+    def test_get_session_id_is_abstract(self) -> None:
+        """抽象メソッドのテスト - インスタンス化できないことを確認."""
+        # SessionIdProviderは抽象クラスなので直接インスタンス化できない
+        with pytest.raises(TypeError):
+            SessionIdProvider()  # type: ignore
+
+    def test_concrete_provider_success(self) -> None:
+        """具象プロバイダーの成功ケーステスト."""
+
+        # テスト用の具象クラスを作成
+        class TestProvider(SessionIdProvider):
+            def get_session_id(self) -> Optional[str]:
+                return "valid_session_id"
+
+        provider = TestProvider()
+        result = provider.get_session_id()
+
+        assert result == "valid_session_id"
+        assert isinstance(result, str)
+
+    def test_concrete_provider_returns_none(self) -> None:
+        """具象プロバイダーがNoneを返すケーステスト."""
+
+        # テスト用の具象クラスを作成
+        class TestProvider(SessionIdProvider):
+            def get_session_id(self) -> Optional[str]:
+                return None
+
+        provider = TestProvider()
+        result = provider.get_session_id()
+
+        assert result is None
+
+    def test_concrete_provider_empty_string(self) -> None:
+        """具象プロバイダーが空文字列を返すケーステスト."""
+
+        # テスト用の具象クラスを作成
+        class TestProvider(SessionIdProvider):
+            def get_session_id(self) -> Optional[str]:
+                return ""
+
+        provider = TestProvider()
+        result = provider.get_session_id()
+
+        assert result == ""
+        assert isinstance(result, str)
+
+    def test_concrete_provider_exception_handling(self) -> None:
+        """具象プロバイダーで例外が発生するケーステスト."""
+
+        # テスト用の具象クラスを作成
+        class TestProvider(SessionIdProvider):
+            def get_session_id(self) -> Optional[str]:
+                raise RuntimeError("Test error")
+
+        provider = TestProvider()
+
+        # 例外が発生することを確認
+        with pytest.raises(RuntimeError, match="Test error"):
+            provider.get_session_id()
+
+    def test_multiple_calls(self) -> None:
+        """複数回呼び出しのテスト."""
+
+        # テスト用の具象クラスを作成
+        class TestProvider(SessionIdProvider):
+            def __init__(self) -> None:
+                self.call_count = 0
+
+            def get_session_id(self) -> Optional[str]:
+                self.call_count += 1
+                return f"session_{self.call_count}"
+
+        provider = TestProvider()
+
+        # 複数回呼び出しても動作することを確認
+        result1 = provider.get_session_id()
+        result2 = provider.get_session_id()
+
+        assert result1 == "session_1"
+        assert result2 == "session_2"
+        assert provider.call_count == 2
+
+
 class TestFantiaClient:
     """FantiaClient クラスのテスト."""
 
@@ -104,6 +192,219 @@ class TestFantiaClient:
         assert client.timeout.read == config.timeout_read
         assert client.timeout.write == config.timeout_write
         assert client.timeout.pool == config.timeout_pool
+
+
+class TestFantiaClientSessionIdProviderIntegration:
+    """FantiaClientとSessionIdProviderの統合テスト."""
+
+    def test_session_id_provider_integration_success(self) -> None:
+        """SessionIdProviderとの統合成功テスト."""
+
+        # テスト用のプロバイダーを作成
+        class TestProvider(SessionIdProvider):
+            def get_session_id(self) -> Optional[str]:
+                return "test_session_id"
+
+        provider = TestProvider()
+        config = FantiaConfig()
+
+        # 統合機能をテスト
+        client = FantiaClient(config, session_provider=provider)
+        session_id = client._get_current_session_id()
+        assert session_id == "test_session_id"
+
+        # セッションクッキーの更新をテスト
+        client._update_session_cookie()
+        assert client.cookies.get("_session_id") == "test_session_id"
+
+    def test_session_id_provider_integration_none(self) -> None:
+        """SessionIdProviderがNoneを返す場合の統合テスト."""
+
+        # テスト用のプロバイダーを作成
+        class TestProvider(SessionIdProvider):
+            def get_session_id(self) -> Optional[str]:
+                return None
+
+        provider = TestProvider()
+        config = FantiaConfig()
+
+        # 統合機能をテスト
+        client = FantiaClient(config, session_provider=provider)
+        session_id = client._get_current_session_id()
+        assert session_id is None
+
+        # セッションクッキーの更新をテスト（Noneの場合はクッキーが削除される）
+        client._update_session_cookie()
+        assert client.cookies.get("_session_id") is None
+
+    def test_session_id_provider_dynamic_update(self) -> None:
+        """SessionIdProviderの動的更新テスト."""
+
+        # テスト用のプロバイダーを作成
+        class TestProvider(SessionIdProvider):
+            def __init__(self) -> None:
+                self.session_id = "initial_session"
+
+            def get_session_id(self) -> Optional[str]:
+                return self.session_id
+
+            def update_session_id(self, new_session_id: str) -> None:
+                self.session_id = new_session_id
+
+        provider = TestProvider()
+        config = FantiaConfig()
+
+        # 統合機能をテスト
+        client = FantiaClient(config, session_provider=provider)
+
+        # 初期セッションIDの確認
+        session_id = client._get_current_session_id()
+        assert session_id == "initial_session"
+
+        # セッションIDを更新
+        provider.update_session_id("updated_session")
+
+        # 更新されたセッションIDの確認
+        session_id = client._get_current_session_id()
+        assert session_id == "updated_session"
+
+        # クッキーも動的に更新されることを確認
+        client._update_session_cookie()
+        assert client.cookies.get("_session_id") == "updated_session"
+
+
+class TestFantiaClientAutoSessionUpdate:
+    """FantiaClientの自動session_id更新機能のテスト."""
+
+    def test_get_success_with_valid_session(self) -> None:
+        """有効なsession_idでget()が成功するテスト."""
+
+        # テスト用のプロバイダーを作成
+        class TestProvider(SessionIdProvider):
+            def get_session_id(self) -> Optional[str]:
+                return "valid_session_id"
+
+        provider = TestProvider()
+        config = FantiaConfig()
+        client = FantiaClient(config, session_provider=provider)
+
+        # モックレスポンスを作成
+        with patch.object(
+            client, "get", return_value=MagicMock(status_code=200, is_success=True)
+        ) as mock_get:
+            response = client.get("https://fantia.jp/api/v1/me")
+
+            assert response.status_code == 200
+            assert response.is_success is True
+            mock_get.assert_called_once()
+
+    def test_get_auto_retry_on_401_success(self) -> None:
+        """401エラー時の自動リトライ成功テスト."""
+
+        # テスト用のプロバイダーを作成
+        class TestProvider(SessionIdProvider):
+            def __init__(self) -> None:
+                self.call_count = 0
+
+            def get_session_id(self) -> Optional[str]:
+                self.call_count += 1
+                if self.call_count == 1:
+                    return "invalid_session_id"
+                return "valid_session_id"
+
+        provider = TestProvider()
+        config = FantiaConfig()
+
+        client = FantiaClient(config, session_provider=provider)
+
+        # 最初の呼び出しで401、2回目で200を返すモック
+        mock_responses = [
+            MagicMock(status_code=401, is_success=False),
+            MagicMock(status_code=200, is_success=True),
+        ]
+
+        with patch.object(httpx.Client, "get", side_effect=mock_responses) as mock_get:
+            # 自動リトライ機能により、最終的に200が返される
+            response = client.get("https://fantia.jp/api/v1/me")
+            assert response.status_code == 200
+            assert response.is_success is True
+            # 2回呼び出される（初回401 + リトライ200）
+            assert mock_get.call_count == 2
+
+    def test_get_auto_retry_on_401_provider_none(self) -> None:
+        """401エラー時にProviderがNoneを返す場合のテスト."""
+
+        # テスト用のプロバイダーを作成
+        class TestProvider(SessionIdProvider):
+            def get_session_id(self) -> Optional[str]:
+                return None
+
+        provider = TestProvider()
+        config = FantiaConfig()
+        client = FantiaClient(config, session_provider=provider)
+
+        mock_response = MagicMock(status_code=401, is_success=False)
+
+        with patch.object(httpx.Client, "get", return_value=mock_response) as mock_get:
+            # Providerが None を返すため、リトライしない
+            response = client.get("https://fantia.jp/api/v1/me")
+            assert response.status_code == 401
+            assert mock_get.call_count == 1
+
+    def test_get_no_retry_on_403_error(self) -> None:
+        """403エラーでは自動リトライしないテスト."""
+
+        # テスト用のプロバイダーを作成
+        class TestProvider(SessionIdProvider):
+            def get_session_id(self) -> Optional[str]:
+                return "valid_session_id"
+
+        provider = TestProvider()
+        config = FantiaConfig()
+        client = FantiaClient(config, session_provider=provider)
+
+        mock_response = MagicMock(status_code=403, is_success=False)
+
+        with patch.object(httpx.Client, "get", return_value=mock_response) as mock_get:
+            response = client.get("https://fantia.jp/api/v1/me")
+            assert response.status_code == 403
+            # 403エラーでは1回だけ呼び出される（リトライなし）
+            assert mock_get.call_count == 1
+
+    def test_get_no_retry_without_provider(self) -> None:
+        """SessionIdProviderがない場合の401エラーテスト."""
+        config = FantiaConfig()
+        client = FantiaClient(config)  # providerなし
+
+        mock_response = MagicMock(status_code=401, is_success=False)
+
+        with patch.object(httpx.Client, "get", return_value=mock_response) as mock_get:
+            response = client.get("https://fantia.jp/api/v1/me")
+            assert response.status_code == 401
+            # Providerがない場合はリトライしない
+            assert mock_get.call_count == 1
+
+    def test_get_retry_limit_exceeded(self) -> None:
+        """リトライ回数制限のテスト."""
+
+        # テスト用のプロバイダーを作成
+        class TestProvider(SessionIdProvider):
+            def get_session_id(self) -> Optional[str]:
+                return "always_invalid_session"
+
+        provider = TestProvider()
+        config = FantiaConfig()
+        client = FantiaClient(config, session_provider=provider)
+
+        # 常に401を返すモック
+        mock_response = MagicMock(status_code=401, is_success=False)
+
+        with patch.object(httpx.Client, "get", return_value=mock_response) as mock_get:
+            # リトライしても401が返されるため、最終的に401が返される
+            response = client.get("https://fantia.jp/api/v1/me")
+            assert response.status_code == 401
+            # 2回呼び出される（初回401 + リトライ401）
+            assert mock_get.call_count == 2
 
 
 class TestCheckLogin:

@@ -5,11 +5,12 @@ import logging
 import os
 import re
 import time
+from abc import ABC, abstractmethod
 from datetime import datetime as dt
 from email.utils import parsedate_to_datetime
 from os import makedirs
 from pathlib import Path
-from typing import Annotated, Any, Optional
+from typing import Annotated, Any, Optional, Union
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -64,7 +65,19 @@ MIMETYPES = {
 UNICODE_CONTROL_MAP = dict.fromkeys(range(32))
 
 
-@singleton
+class SessionIdProvider(ABC):
+    """Abstract base class for providing Fantia session IDs."""
+
+    @abstractmethod
+    def get_session_id(self) -> Optional[str]:
+        """Get the current session ID.
+
+        Returns:
+            The session ID string if available, None otherwise.
+        """
+        pass
+
+
 class FantiaConfig(BaseModel):
     """Configuration for the Fantia client."""
 
@@ -103,7 +116,9 @@ class FantiaClient(httpx.Client):
     """A synchronous HTTP client for interacting with the Fantia API."""
 
     @inject
-    def __init__(self, config: FantiaConfig) -> None:
+    def __init__(
+        self, config: FantiaConfig, session_provider: Optional[SessionIdProvider] = None
+    ) -> None:
         timeout = httpx.Timeout(
             connect=config.timeout_connect,
             read=config.timeout_read,
@@ -121,6 +136,9 @@ class FantiaClient(httpx.Client):
             # "Accept-Encoding": "gzip, deflate, br",
             # "Connection": "keep-alive",
         }
+
+        # Store session provider for dynamic session_id retrieval
+        self._session_provider = session_provider
 
         cookies: dict[str, str] = {}
         if config.session_id:
@@ -140,6 +158,51 @@ class FantiaClient(httpx.Client):
         }
 
         super().__init__(**options)
+
+    def _get_current_session_id(self) -> Optional[str]:
+        """Get the current session ID from the provider if available."""
+        if self._session_provider:
+            return self._session_provider.get_session_id()
+        return None
+
+    def _update_session_cookie(self) -> None:
+        """Update the session cookie with the current session ID from the provider."""
+        if self._session_provider:
+            session_id = self._session_provider.get_session_id()
+            if session_id:
+                self.cookies.set("_session_id", session_id, domain=DOMAIN)
+            else:
+                # Remove session cookie if no session_id is available
+                if "_session_id" in self.cookies:
+                    self.cookies.delete("_session_id", domain=DOMAIN)
+
+    def get(self, url: Union[httpx.URL, str], **kwargs: Any) -> httpx.Response:
+        """Override get method to automatically retry with updated session_id on 401 errors."""
+        # First attempt
+        response = super().get(url, **kwargs)
+
+        # Check if we got a 401 Unauthorized and have a session provider
+        if response.status_code == 401 and self._session_provider is not None:
+            logger.info("Received 401 Unauthorized, attempting to refresh session_id")
+
+            # Try to get a new session_id from the provider
+            new_session_id = self._session_provider.get_session_id()
+            if new_session_id:
+                # Update the session cookie
+                self.cookies.set("_session_id", new_session_id, domain=DOMAIN)
+                logger.info("Updated session_id, retrying request")
+
+                # Retry the request once with the new session_id
+                response = super().get(url, **kwargs)
+
+                if response.status_code == 401:
+                    logger.warning("Request still failed after session_id refresh")
+                else:
+                    logger.info("Request succeeded after session_id refresh")
+            else:
+                logger.warning("Unable to get new session_id from provider")
+
+        return response
 
 
 def get_csrf_token(client: FantiaClient, post_id: str) -> str:
