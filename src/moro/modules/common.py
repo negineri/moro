@@ -18,4 +18,5 @@ class CommonConfig(BaseModel):
     jobs: int = Field(default=16, ge=1)  # Number of jobs for processing
     logging_config: dict[str, Any] = Field(default_factory=dict)  # Logging configuration
     user_data_dir: str = Field(default=pfd.user_data_dir)  # User data directory
+    user_cache_dir: str = Field(default=pfd.user_cache_dir)  # User cache directory
     working_dir: str = Field(default=".")  # Working directory

@@ -611,6 +611,185 @@ class TestFantiaClientMultiCookieIntegration:
         assert client.cookies.get("_session_id") is None
 
 
+class TestSeleniumSessionIdProviderCookieCache:
+    """SeleniumSessionIdProviderのクッキーキャッシュ機能のテスト."""
+
+    def test_cache_file_path_custom(self, common_config: CommonConfig) -> None:
+        """カスタムキャッシュファイルパスのテスト."""
+        from moro.modules.fantia import FantiaConfig
+
+        fantia_config = FantiaConfig(cookie_cache_file="/custom/path/cookies.json")
+        provider = SeleniumSessionIdProvider(common_config, fantia_config)
+        assert provider._cookie_cache_file == "/custom/path/cookies.json"
+
+    def test_save_and_load_cached_cookies(
+        self, common_config: CommonConfig, tmp_path: Path
+    ) -> None:
+        """クッキーの保存と読み込みのテスト."""
+        from moro.modules.fantia import FantiaConfig
+
+        cache_file = tmp_path / "test_cookies.json"
+        fantia_config = FantiaConfig(cookie_cache_file=str(cache_file))
+        provider = SeleniumSessionIdProvider(common_config, fantia_config)
+
+        # Test cookies
+        test_cookies = {
+            "_session_id": "test_session_12345",
+            "jp_chatplus_vtoken": "test_token_67890",
+            "_f_v_k_1": "test_key_abcde",
+        }
+
+        # Save cookies
+        provider._save_cookies_to_cache(test_cookies)
+        assert cache_file.exists()
+
+        # Load cookies
+        loaded_cookies = provider._load_cached_cookies()
+        assert loaded_cookies == test_cookies
+
+    def test_cache_file_security_permissions(
+        self, common_config: CommonConfig, tmp_path: Path
+    ) -> None:
+        """キャッシュファイルのセキュリティ権限のテスト."""
+        import stat
+
+        from moro.modules.fantia import FantiaConfig
+
+        cache_file = tmp_path / "secure_cookies.json"
+        fantia_config = FantiaConfig(cookie_cache_file=str(cache_file))
+        provider = SeleniumSessionIdProvider(common_config, fantia_config)
+
+        test_cookies = {"_session_id": "test_session"}
+        provider._save_cookies_to_cache(test_cookies)
+
+        # Check file permissions (user read/write only)
+        file_mode = cache_file.stat().st_mode
+        assert file_mode & stat.S_IRWXU == stat.S_IRUSR | stat.S_IWUSR
+        assert file_mode & stat.S_IRWXG == 0
+        assert file_mode & stat.S_IRWXO == 0
+
+    def test_session_validation_success(
+        self, common_config: CommonConfig, fantia_config: FantiaConfig
+    ) -> None:
+        """セッション有効性チェック成功のテスト."""
+        from unittest.mock import MagicMock, patch
+
+        provider = SeleniumSessionIdProvider(common_config, fantia_config)
+        test_cookies = {"_session_id": "valid_session"}
+
+        # Mock successful API response
+        mock_response = MagicMock()
+        mock_response.is_success = True
+        mock_response.status_code = 200
+
+        with patch("httpx.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.__enter__ = MagicMock(return_value=mock_client)
+            mock_client.__exit__ = MagicMock(return_value=None)
+            mock_client.get.return_value = mock_response
+            mock_client_class.return_value = mock_client
+
+            result = provider._is_session_valid(test_cookies)
+            assert result is True
+            mock_client.get.assert_called_once()
+
+    def test_session_validation_failure(
+        self, common_config: CommonConfig, fantia_config: FantiaConfig
+    ) -> None:
+        """セッション有効性チェック失敗のテスト."""
+        from unittest.mock import MagicMock, patch
+
+        provider = SeleniumSessionIdProvider(common_config, fantia_config)
+        test_cookies = {"_session_id": "invalid_session"}
+
+        # Mock failed API response
+        mock_response = MagicMock()
+        mock_response.is_success = False
+        mock_response.status_code = 401
+
+        with patch("httpx.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.__enter__ = MagicMock(return_value=mock_client)
+            mock_client.__exit__ = MagicMock(return_value=None)
+            mock_client.get.return_value = mock_response
+            mock_client_class.return_value = mock_client
+
+            result = provider._is_session_valid(test_cookies)
+            assert result is False
+
+    def test_session_validation_empty_cookies(
+        self, common_config: CommonConfig, fantia_config: FantiaConfig
+    ) -> None:
+        """空のクッキーでのセッション有効性チェックのテスト."""
+        provider = SeleniumSessionIdProvider(common_config, fantia_config)
+
+        result = provider._is_session_valid({})
+        assert result is False
+
+    def test_get_cookies_uses_cache_when_valid(
+        self, common_config: CommonConfig, tmp_path: Path
+    ) -> None:
+        """有効なキャッシュが存在する場合にキャッシュを使用することのテスト."""
+        from unittest.mock import patch
+
+        from moro.modules.fantia import FantiaConfig
+
+        cache_file = tmp_path / "valid_cache.json"
+        fantia_config = FantiaConfig(cookie_cache_file=str(cache_file))
+        provider = SeleniumSessionIdProvider(common_config, fantia_config)
+
+        # Pre-populate cache
+        test_cookies = {"_session_id": "cached_session", "jp_chatplus_vtoken": "cached_token"}
+        provider._save_cookies_to_cache(test_cookies)
+
+        # Mock session validation to return True
+        with patch.object(provider, "_is_session_valid", return_value=True):
+            with patch.object(provider, "_perform_selenium_login") as mock_selenium:
+                result = provider.get_cookies()
+
+                # Should return cached cookies without calling Selenium
+                assert result == test_cookies
+                mock_selenium.assert_not_called()
+
+    def test_get_cookies_performs_login_when_cache_invalid(
+        self, common_config: CommonConfig, tmp_path: Path
+    ) -> None:
+        """無効なキャッシュの場合にSeleniumログインを実行することのテスト."""
+        from unittest.mock import patch
+
+        from moro.modules.fantia import FantiaConfig
+
+        cache_file = tmp_path / "invalid_cache.json"
+        fantia_config = FantiaConfig(cookie_cache_file=str(cache_file))
+        provider = SeleniumSessionIdProvider(common_config, fantia_config)
+
+        fresh_cookies = {"_session_id": "fresh_session", "_f_v_k_1": "fresh_key"}
+
+        # Mock session validation to return False and Selenium login
+        with patch.object(provider, "_is_session_valid", return_value=False):
+            with patch.object(
+                provider, "_perform_selenium_login", return_value=fresh_cookies
+            ) as mock_selenium:
+                result = provider.get_cookies()
+
+                # Should perform fresh login and return new cookies
+                assert result == fresh_cookies
+                mock_selenium.assert_called_once()
+
+    def test_cache_disabled(self, common_config: CommonConfig) -> None:
+        """クッキーキャッシュが無効の場合のテスト."""
+        from moro.modules.fantia import FantiaConfig
+
+        fantia_config = FantiaConfig(enable_cookie_cache=False)
+        provider = SeleniumSessionIdProvider(common_config, fantia_config)
+
+        assert provider._enable_cookie_cache is False
+
+        # Should always return empty cache when disabled
+        result = provider._load_cached_cookies()
+        assert result == {}
+
+
 @pytest.fixture
 def common_config(tmp_path: Path) -> CommonConfig:
     """CommonConfigのテスト用インスタンスを提供するフィクスチャ."""
@@ -621,22 +800,23 @@ def common_config(tmp_path: Path) -> CommonConfig:
     )
 
 
+@pytest.fixture
+def fantia_config(tmp_path: Path) -> FantiaConfig:
+    """FantiaConfigのテスト用インスタンスを提供するフィクスチャ."""
+    return FantiaConfig()
+
+
 class TestSeleniumSessionIdProvider:
     """SeleniumSessionIdProviderのテスト."""
 
-    def test_provider_implementation_exists(self, common_config: CommonConfig) -> None:
+    def test_provider_implementation_exists(
+        self, common_config: CommonConfig, fantia_config: FantiaConfig
+    ) -> None:
         """SeleniumSessionIdProviderが実装されていることを確認するテスト."""
         # SeleniumSessionIdProviderクラスがインポートできることを確認
-        provider = SeleniumSessionIdProvider(common_config)
+        provider = SeleniumSessionIdProvider(common_config, fantia_config)
         assert isinstance(provider, SessionIdProvider)
         assert isinstance(provider, SeleniumSessionIdProvider)
-
-    def test_selenium_provider_interface_compliance(self, common_config: CommonConfig) -> None:
-        """SeleniumSessionIdProviderがSessionIdProviderインターフェースに準拠することを確認するテスト."""
-        provider = SeleniumSessionIdProvider(common_config)
-        assert isinstance(provider, SessionIdProvider)
-        assert hasattr(provider, "get_session_id")
-        assert callable(provider.get_session_id)
 
     def test_selenium_provider_get_session_id_returns_none_when_not_implemented(self) -> None:
         """SeleniumSessionIdProviderのget_session_id()が実装されていない場合にNoneを返すテスト."""
@@ -648,20 +828,19 @@ class TestSeleniumSessionIdProvider:
         # assert result is None  # 実装されていない場合はNoneを返すことを期待
         pass
 
-    def test_selenium_provider_with_user_data_dir(self, common_config: CommonConfig) -> None:
-        """SeleniumSessionIdProviderがuser_data_dirを指定して初期化できることを確認するテスト."""
-        provider = SeleniumSessionIdProvider(common_config)
-        assert provider._user_data_dir == common_config.user_data_dir
-
-    def test_selenium_provider_webdriver_error_handling(self, common_config: CommonConfig) -> None:
+    def test_selenium_provider_webdriver_error_handling(
+        self, common_config: CommonConfig, fantia_config: FantiaConfig
+    ) -> None:
         """SeleniumSessionIdProviderがWebDriverエラーを適切に処理することを確認するテスト."""
         # WebDriverの初期化に失敗した場合のテスト
         with patch("selenium.webdriver.Chrome", side_effect=Exception("WebDriver error")):
-            provider = SeleniumSessionIdProvider(common_config)
-            result = provider.get_session_id()
-            assert result is None  # エラー時はNoneを返すことを期待
+            provider = SeleniumSessionIdProvider(common_config, fantia_config)
+            result = provider.get_cookies()
+            assert result == {}  # 空の辞書を返すことを期待
 
-    def test_selenium_provider_login_success_mock(self, common_config: CommonConfig) -> None:
+    def test_selenium_provider_login_success_mock(
+        self, common_config: CommonConfig, fantia_config: FantiaConfig
+    ) -> None:
         """SeleniumSessionIdProviderが正常にログインしてsession_idを取得することを確認するテスト（モック使用）."""
         # contextmanagerのモック設定
         mock_driver = MagicMock()
@@ -676,11 +855,13 @@ class TestSeleniumSessionIdProvider:
         mock_driver.current_url = "https://fantia.jp/"
 
         with patch("selenium.webdriver.Chrome", return_value=mock_driver):
-            provider = SeleniumSessionIdProvider(common_config)
-            result = provider.get_session_id()
-            assert result == "test_session_12345"
+            provider = SeleniumSessionIdProvider(common_config, fantia_config)
+            result = provider.get_cookies()
+            assert result["_session_id"] == "test_session_12345"
 
-    def test_selenium_provider_no_session_cookie_found(self, common_config: CommonConfig) -> None:
+    def test_selenium_provider_no_session_cookie_found(
+        self, common_config: CommonConfig, fantia_config: FantiaConfig
+    ) -> None:
         """SeleniumSessionIdProviderがsession_idクッキーを見つけられない場合のテスト."""
         # session_idクッキーが存在しない場合のテスト
         mock_driver = MagicMock()
@@ -692,15 +873,17 @@ class TestSeleniumSessionIdProvider:
         mock_driver.current_url = "https://fantia.jp/"
 
         with patch("selenium.webdriver.Chrome", return_value=mock_driver):
-            provider = SeleniumSessionIdProvider(common_config)
-            result = provider.get_session_id()
-            assert result is None  # session_idが見つからない場合はNoneを返す
+            provider = SeleniumSessionIdProvider(common_config, fantia_config)
+            result = provider.get_cookies()
+            assert result == {}  # session_idが見つからない場合は空の辞書を返す
 
 
 class TestSeleniumSessionIdProviderMultiCookie:
     """SeleniumSessionIdProviderの複数クッキー対応テスト."""
 
-    def test_get_cookies_all_cookies_available(self, common_config: CommonConfig) -> None:
+    def test_get_cookies_all_cookies_available(
+        self, common_config: CommonConfig, fantia_config: FantiaConfig
+    ) -> None:
         """全クッキーが取得できる場合のget_cookies()テスト."""
         mock_driver = MagicMock()
         mock_driver.__enter__ = MagicMock(return_value=mock_driver)
@@ -715,7 +898,7 @@ class TestSeleniumSessionIdProviderMultiCookie:
         mock_driver.current_url = "https://fantia.jp/"
 
         with patch("selenium.webdriver.Chrome", return_value=mock_driver):
-            provider = SeleniumSessionIdProvider(common_config)
+            provider = SeleniumSessionIdProvider(common_config, fantia_config)
             result = provider.get_cookies()
 
             expected = {
@@ -725,7 +908,9 @@ class TestSeleniumSessionIdProviderMultiCookie:
             }
             assert result == expected
 
-    def test_get_cookies_partial_cookies_available(self, common_config: CommonConfig) -> None:
+    def test_get_cookies_partial_cookies_available(
+        self, common_config: CommonConfig, fantia_config: FantiaConfig
+    ) -> None:
         """一部クッキーのみ取得できる場合のget_cookies()テスト."""
         mock_driver = MagicMock()
         mock_driver.__enter__ = MagicMock(return_value=mock_driver)
@@ -738,7 +923,7 @@ class TestSeleniumSessionIdProviderMultiCookie:
         mock_driver.current_url = "https://fantia.jp/"
 
         with patch("selenium.webdriver.Chrome", return_value=mock_driver):
-            provider = SeleniumSessionIdProvider(common_config)
+            provider = SeleniumSessionIdProvider(common_config, fantia_config)
             result = provider.get_cookies()
 
             expected = {
@@ -746,7 +931,9 @@ class TestSeleniumSessionIdProviderMultiCookie:
             }
             assert result == expected
 
-    def test_get_cookies_no_relevant_cookies(self, common_config: CommonConfig) -> None:
+    def test_get_cookies_no_relevant_cookies(
+        self, common_config: CommonConfig, fantia_config: FantiaConfig
+    ) -> None:
         """必要クッキーが全く見つからない場合のget_cookies()テスト."""
         mock_driver = MagicMock()
         mock_driver.__enter__ = MagicMock(return_value=mock_driver)
@@ -759,20 +946,24 @@ class TestSeleniumSessionIdProviderMultiCookie:
         mock_driver.current_url = "https://fantia.jp/"
 
         with patch("selenium.webdriver.Chrome", return_value=mock_driver):
-            provider = SeleniumSessionIdProvider(common_config)
+            provider = SeleniumSessionIdProvider(common_config, fantia_config)
             result = provider.get_cookies()
 
             assert result == {}
 
-    def test_get_cookies_webdriver_error(self, common_config: CommonConfig) -> None:
+    def test_get_cookies_webdriver_error(
+        self, common_config: CommonConfig, fantia_config: FantiaConfig
+    ) -> None:
         """WebDriverエラー時のget_cookies()テスト."""
         with patch("selenium.webdriver.Chrome", side_effect=Exception("WebDriver error")):
-            provider = SeleniumSessionIdProvider(common_config)
+            provider = SeleniumSessionIdProvider(common_config, fantia_config)
             result = provider.get_cookies()
             assert result == {}
 
     @pytest.mark.skip(reason="ログインのタイムアウトは実装されていない")
-    def test_get_cookies_login_failure(self, common_config: CommonConfig) -> None:
+    def test_get_cookies_login_failure(
+        self, common_config: CommonConfig, fantia_config: FantiaConfig
+    ) -> None:
         """ログイン失敗時のget_cookies()テスト."""
         mock_driver = MagicMock()
         mock_driver.__enter__ = MagicMock(return_value=mock_driver)
@@ -782,57 +973,9 @@ class TestSeleniumSessionIdProviderMultiCookie:
         mock_driver.current_url = "https://fantia.jp/sessions/signin"
 
         with patch("selenium.webdriver.Chrome", return_value=mock_driver):
-            provider = SeleniumSessionIdProvider(common_config)
+            provider = SeleniumSessionIdProvider(common_config, fantia_config)
             result = provider.get_cookies()
             assert result == {}
-
-    def test_get_session_id_backward_compatibility(self, common_config: CommonConfig) -> None:
-        """既存get_session_id()メソッドとの後方互換性テスト."""
-        mock_driver = MagicMock()
-        mock_driver.__enter__ = MagicMock(return_value=mock_driver)
-        mock_driver.__exit__ = MagicMock(return_value=None)
-
-        mock_driver.get_cookies.return_value = [
-            {"name": "_session_id", "value": "session_12345"},
-            {"name": "jp_chatplus_vtoken", "value": "chatplus_67890"},
-        ]
-        mock_driver.current_url = "https://fantia.jp/"
-
-        with patch("selenium.webdriver.Chrome", return_value=mock_driver):
-            provider = SeleniumSessionIdProvider(common_config)
-
-            # 既存のget_session_id()は引き続き動作する
-            session_id = provider.get_session_id()
-            assert session_id == "session_12345"
-
-            # 新しいget_cookies()も動作する
-            cookies = provider.get_cookies()
-            assert "_session_id" in cookies
-            assert cookies["_session_id"] == "session_12345"
-
-    def test_get_cookies_consistency_with_get_session_id(self, common_config: CommonConfig) -> None:
-        """get_cookies()とget_session_id()の整合性テスト."""
-        mock_driver = MagicMock()
-        mock_driver.__enter__ = MagicMock(return_value=mock_driver)
-        mock_driver.__exit__ = MagicMock(return_value=None)
-
-        mock_driver.get_cookies.return_value = [
-            {"name": "_session_id", "value": "session_12345"},
-            {"name": "jp_chatplus_vtoken", "value": "chatplus_67890"},
-        ]
-        mock_driver.current_url = "https://fantia.jp/"
-
-        with patch("selenium.webdriver.Chrome", return_value=mock_driver):
-            provider = SeleniumSessionIdProvider(common_config)
-
-            session_id = provider.get_session_id()
-            cookies = provider.get_cookies()
-
-            # get_session_id()とget_cookies()の_session_idが一致する
-            if session_id is not None:
-                assert cookies.get("_session_id") == session_id
-            else:
-                assert "_session_id" not in cookies
 
 
 class TestCheckLogin:

@@ -8,7 +8,7 @@ import time
 from abc import ABC, abstractmethod
 from datetime import datetime as dt
 from email.utils import parsedate_to_datetime
-from os import makedirs
+from os import makedirs, path
 from pathlib import Path
 from typing import Annotated, Any, Optional, Union
 from urllib.parse import urljoin, urlparse
@@ -86,22 +86,127 @@ class SessionIdProvider(ABC):
 class SeleniumSessionIdProvider(SessionIdProvider):
     """Selenium-based SessionId provider that uses Chrome WebDriver to login to Fantia."""
 
-    def __init__(self, config: CommonConfig) -> None:
+    def __init__(self, config: CommonConfig, fantia_config: "FantiaConfig") -> None:
         """Initialize the Selenium session ID provider.
 
         Args:
             config: CommonConfig instance for configuration.
+            fantia_config: FantiaConfig instance for cookie caching options.
         """
-        self._user_data_dir = config.user_data_dir
+        self._chrome_user_data = path.join(config.user_cache_dir, fantia_config.chrome_data_dir)
+        self._enable_cookie_cache = fantia_config.enable_cookie_cache
+        self._cookie_cache_file = path.join(config.user_cache_dir, fantia_config.cookie_cache_file)
+
+    def _load_cached_cookies(self) -> dict[str, str]:
+        """Load cached cookies from file.
+
+        Returns:
+            Dictionary of cached cookies, empty dict if not found or invalid.
+        """
+        if not self._enable_cookie_cache:
+            return {}
+
+        try:
+            cache_file = Path(self._cookie_cache_file)
+            if not cache_file.exists():
+                return {}
+
+            with cache_file.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            # Validate the structure
+            if isinstance(data, dict) and "cookies" in data and "timestamp" in data:
+                return data["cookies"]  # type: ignore
+        except Exception as e:
+            logger.warning(f"Failed to load cached cookies: {e}")
+
+        return {}
+
+    def _save_cookies_to_cache(self, cookies: dict[str, str]) -> None:
+        """Save cookies to cache file.
+
+        Args:
+            cookies: Dictionary of cookies to save.
+        """
+        if not self._enable_cookie_cache or not cookies:
+            return
+
+        try:
+            cache_file = Path(self._cookie_cache_file)
+            cache_file.parent.mkdir(parents=True, exist_ok=True)
+
+            data: dict[str, Any] = {
+                "cookies": cookies,
+                "timestamp": dt.now().isoformat(),
+            }
+
+            with cache_file.open("w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+
+            # Set file permissions to user read/write only for security
+            cache_file.chmod(0o600)
+
+            logger.info(f"Saved {len(cookies)} cookies to cache: {cache_file}")
+        except Exception as e:
+            logger.warning(f"Failed to save cookies to cache: {e}")
+
+    def _is_session_valid(self, cookies: dict[str, str]) -> bool:
+        """Check if cached session is still valid.
+
+        Args:
+            cookies: Dictionary of cookies to validate.
+
+        Returns:
+            True if session is valid, False otherwise.
+        """
+        if not cookies.get("_session_id"):
+            return False
+
+        try:
+            # Create a temporary httpx client to test the session
+            test_cookies = dict(cookies.items())
+
+            with httpx.Client(cookies=test_cookies) as client:
+                response = client.get(ME_API, timeout=10.0)
+                return response.is_success or response.status_code == 304
+
+        except Exception as e:
+            logger.debug(f"Session validation failed: {e}")
+            return False
 
     def get_cookies(self) -> dict[str, str]:
-        """Get all Fantia-related cookies by performing Selenium-based login.
+        """Get all Fantia-related cookies with caching support.
+
+        First attempts to load cached cookies and validate them.
+        If cached cookies are invalid or not found, performs Selenium-based login.
 
         Returns:
             Dictionary containing available cookies. May include:
             - _session_id: Main session identifier
             - jp_chatplus_vtoken: Chat plus token
             - _f_v_k_1: Fantia verification key
+        """
+        # Try to load cached cookies first
+        cached_cookies = self._load_cached_cookies()
+        if cached_cookies and self._is_session_valid(cached_cookies):
+            logger.info(f"Using cached cookies: {list(cached_cookies.keys())}")
+            return cached_cookies
+
+        # Cached cookies not valid, perform fresh login
+        logger.info("Cached cookies invalid or not found, performing fresh login")
+        result = self._perform_selenium_login()
+
+        # Save new cookies to cache
+        if result:
+            self._save_cookies_to_cache(result)
+
+        return result
+
+    def _perform_selenium_login(self) -> dict[str, str]:
+        """Perform Selenium-based login to obtain fresh cookies.
+
+        Returns:
+            Dictionary containing fresh cookies from Selenium login.
         """
         target_cookies = ["_session_id", "jp_chatplus_vtoken", "_f_v_k_1"]
         result: dict[str, str] = {}
@@ -144,9 +249,9 @@ class SeleniumSessionIdProvider(SessionIdProvider):
         """
         options = webdriver.ChromeOptions()
 
-        if self._user_data_dir:
-            makedirs(self._user_data_dir, exist_ok=True)
-            options.add_argument(f"--user-data-dir={self._user_data_dir}")
+        if self._chrome_user_data:
+            makedirs(self._chrome_user_data, exist_ok=True)
+            options.add_argument(f"--user-data-dir={self._chrome_user_data}")
 
         return options
 
@@ -157,6 +262,11 @@ class FantiaConfig(BaseModel):
 
     # 認証設定
     session_id: Optional[str] = Field(default=None, min_length=1)
+
+    # selenium設定
+    chrome_data_dir: str = Field(
+        default="chrome_userdata", description="Directory for Selenium user data"
+    )
 
     # ダウンロード設定
     directory: str = Field(default="downloads/fantia")
@@ -173,6 +283,12 @@ class FantiaConfig(BaseModel):
 
     # 並列処理設定
     concurrent_downloads: int = Field(default=3, ge=1)
+
+    # クッキーキャッシュ設定
+    enable_cookie_cache: bool = Field(default=True, description="Enable cookie caching")
+    cookie_cache_file: str = Field(
+        default="fantia_cookies.json", description="Cookie cache file path"
+    )
 
     @field_validator("session_id")
     @classmethod
