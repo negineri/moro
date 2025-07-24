@@ -306,9 +306,7 @@ class FantiaClient(httpx.Client):
     """A synchronous HTTP client for interacting with the Fantia API."""
 
     @inject
-    def __init__(
-        self, config: FantiaConfig, session_provider: Optional[SessionIdProvider] = None
-    ) -> None:
+    def __init__(self, config: FantiaConfig, session_provider: SessionIdProvider) -> None:
         timeout = httpx.Timeout(
             connect=config.timeout_connect,
             read=config.timeout_read,
@@ -372,7 +370,7 @@ class FantiaClient(httpx.Client):
         response = super().get(url, **kwargs)
 
         # Check if we got a 401 Unauthorized and have a session provider
-        if response.status_code == 401 and self._session_provider is not None:
+        if response.status_code == 401:
             logger.info("Received 401 Unauthorized, attempting to refresh cookies")
 
             # Try to get new cookies from the provider
