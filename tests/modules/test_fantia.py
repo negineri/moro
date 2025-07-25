@@ -38,6 +38,20 @@ def fantia_config(tmp_path: Path) -> FantiaConfig:
     return FantiaConfig()
 
 
+@pytest.fixture
+def session_id_provider() -> SessionIdProvider:
+    """SessionIdProviderのテスト用インスタンスを提供するフィクスチャ."""
+
+    class TestProvider(SessionIdProvider):
+        def get_session_id(self) -> Optional[str]:
+            return "test_session_id"
+
+        def get_cookies(self) -> dict[str, str]:
+            return {"_session_id": "test_session_id"}
+
+    return TestProvider()
+
+
 class TestFantiaIntegratin:
     """FantiaClientの統合テスト."""
 
@@ -197,10 +211,10 @@ class TestSessionIdProvider:
 class TestFantiaClient:
     """FantiaClient クラスのテスト."""
 
-    def test_http_client_configuration(self) -> None:
+    def test_http_client_configuration(self, session_id_provider: SessionIdProvider) -> None:
         """HTTP クライアントの設定テスト."""
         config = FantiaConfig(max_retries=5)
-        client = FantiaClient(config)
+        client = FantiaClient(config, session_provider=session_id_provider)
 
         # httpx.Client が適切な設定で作成されることを確認
         assert client.timeout.connect == config.timeout_connect
@@ -500,19 +514,6 @@ class TestFantiaClientAutoSessionUpdate:
             response = client.get("https://fantia.jp/api/v1/me")
             assert response.status_code == 403
             # 403エラーでは1回だけ呼び出される（リトライなし）
-            assert mock_get.call_count == 1
-
-    def test_get_no_retry_without_provider(self) -> None:
-        """SessionIdProviderがない場合の401エラーテスト."""
-        config = FantiaConfig()
-        client = FantiaClient(config)  # providerなし
-
-        mock_response = MagicMock(status_code=401, is_success=False)
-
-        with patch.object(httpx.Client, "get", return_value=mock_response) as mock_get:
-            response = client.get("https://fantia.jp/api/v1/me")
-            assert response.status_code == 401
-            # Providerがない場合はリトライしない
             assert mock_get.call_count == 1
 
     def test_get_retry_limit_exceeded(self) -> None:
