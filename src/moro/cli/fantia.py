@@ -7,10 +7,10 @@ Provides a command-line interface for interacting with Fantia, including login f
 from logging.config import dictConfig
 
 import click
-from injector import Injector
 
 from moro.cli._utils import AliasedGroup
 from moro.config.settings import ConfigRepository
+from moro.dependencies.container import create_injector
 from moro.usecases.fantia import FantiaDownloadPostsByUserUseCase, FantiaDownloadPostUseCase
 
 
@@ -30,7 +30,7 @@ def fantia() -> None:
 def post(post_id: str) -> None:
     """Download a post by its ID."""
     config = ConfigRepository.create()
-    injector = Injector([config.create_injector_builder()])
+    injector = create_injector(config)
 
     injector.get(FantiaDownloadPostUseCase).execute(post_id)
 
@@ -55,6 +55,6 @@ def user(user_id: str, verbose: bool) -> None:
     if verbose:
         config.common.logging_config["loggers"]["default"]["level"] = "INFO"
         dictConfig(config.common.logging_config)
-    injector = Injector([config.create_injector_builder()])
+    injector = create_injector(config)
 
     injector.get(FantiaDownloadPostsByUserUseCase).execute(user_id)

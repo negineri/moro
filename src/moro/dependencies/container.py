@@ -2,23 +2,27 @@
 
 from typing import Callable, TypeVar
 
-from injector import Binder, Injector, Module
+from injector import Binder, Injector
+
+from moro.config.settings import ConfigRepository
+from moro.modules.fantia import SeleniumSessionIdProvider, SessionIdProvider
 
 _T = TypeVar("_T")
 
 
-class RepositoryModule(Module):
-    """Module for repository bindings."""
+def configure(binder: Binder) -> None:
+    """Configure the dependency injection container."""
+    binder.bind(SessionIdProvider, to=SeleniumSessionIdProvider)  # type: ignore[type-abstract]
 
 
-def create_injector() -> Injector:
+def create_injector(config: ConfigRepository) -> Injector:
     """
     Create and configure the dependency injection container.
 
     Returns:
         Injector: Configured injector instance.
     """
-    return Injector([RepositoryModule])
+    return Injector([config.create_injector_builder(), configure])
 
 
 def create_binder(cls: type[_T], ins: _T) -> Callable[[Binder], None]:

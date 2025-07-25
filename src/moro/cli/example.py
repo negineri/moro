@@ -21,6 +21,7 @@ def example() -> None:
 def echo() -> None:
     """Echo command."""
     # Example of accessing injector from context
-    injector = create_injector()
+    config = ConfigRepository.create()
+    injector = create_injector(config)
     config = injector.get(ConfigRepository)
     click.echo(f"Current configuration: {config}")
