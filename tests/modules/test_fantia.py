@@ -22,6 +22,26 @@ from moro.modules.fantia import (
 )
 
 
+@pytest.fixture
+def common_config(tmp_path: Path) -> CommonConfig:
+    """CommonConfigのテスト用インスタンスを提供するフィクスチャ."""
+    return CommonConfig(
+        user_data_dir=str(tmp_path / "user_data"),
+        working_dir=str(tmp_path / "working"),
+        jobs=4,
+    )
+
+
+@pytest.fixture
+def fantia_config(tmp_path: Path) -> FantiaConfig:
+    """FantiaConfigのテスト用インスタンスを提供するフィクスチャ."""
+    return FantiaConfig()
+
+
+class TestFantiaIntegratin:
+    """FantiaClientの統合テスト."""
+
+
 class TestSessionIdProvider:
     """SessionIdProvider クラスのテスト."""
 
@@ -788,22 +808,6 @@ class TestSeleniumSessionIdProviderCookieCache:
         # Should always return empty cache when disabled
         result = provider._load_cached_cookies()
         assert result == {}
-
-
-@pytest.fixture
-def common_config(tmp_path: Path) -> CommonConfig:
-    """CommonConfigのテスト用インスタンスを提供するフィクスチャ."""
-    return CommonConfig(
-        user_data_dir=str(tmp_path / "user_data"),
-        working_dir=str(tmp_path / "working"),
-        jobs=4,
-    )
-
-
-@pytest.fixture
-def fantia_config(tmp_path: Path) -> FantiaConfig:
-    """FantiaConfigのテスト用インスタンスを提供するフィクスチャ."""
-    return FantiaConfig()
 
 
 class TestSeleniumSessionIdProvider:

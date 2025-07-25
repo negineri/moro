@@ -67,6 +67,49 @@ MIMETYPES = {
 UNICODE_CONTROL_MAP = dict.fromkeys(range(32))
 
 
+@singleton
+class FantiaConfig(BaseModel):
+    """Configuration for the Fantia client."""
+
+    # 認証設定
+    session_id: Optional[str] = Field(default=None, min_length=1)
+
+    # selenium設定
+    chrome_data_dir: str = Field(
+        default="chrome_userdata", description="Directory for Selenium user data"
+    )
+
+    # ダウンロード設定
+    directory: str = Field(default="downloads/fantia")
+    download_thumb: bool = Field(default=False)
+    priorize_webp: bool = Field(default=False)
+    use_server_filenames: bool = Field(default=False)
+
+    # HTTP設定
+    max_retries: int = Field(default=5, ge=0)
+    timeout_connect: float = Field(default=10.0, ge=0)
+    timeout_read: float = Field(default=30.0, ge=0)
+    timeout_write: float = Field(default=10.0, ge=0)
+    timeout_pool: float = Field(default=5.0, ge=0)
+
+    # 並列処理設定
+    concurrent_downloads: int = Field(default=3, ge=1)
+
+    # クッキーキャッシュ設定
+    enable_cookie_cache: bool = Field(default=True, description="Enable cookie caching")
+    cookie_cache_file: str = Field(
+        default="fantia_cookies.json", description="Cookie cache file path"
+    )
+
+    @field_validator("session_id")
+    @classmethod
+    def validate_session_id(cls, v: Optional[str]) -> Optional[str]:
+        """Validate session_id is not empty string."""
+        if v is not None and not v.strip():
+            raise ValueError("session_id cannot be empty string")
+        return v
+
+
 class SessionIdProvider(ABC):
     """Abstract base class for providing Fantia session IDs."""
 
@@ -254,51 +297,6 @@ class SeleniumSessionIdProvider(SessionIdProvider):
             options.add_argument(f"--user-data-dir={self._chrome_user_data}")
 
         return options
-
-
-@singleton
-class FantiaConfig(BaseModel):
-    """Configuration for the Fantia client."""
-
-    # 認証設定
-    session_id: Optional[str] = Field(default=None, min_length=1)
-
-    # selenium設定
-    chrome_data_dir: str = Field(
-        default="chrome_userdata", description="Directory for Selenium user data"
-    )
-
-    # ダウンロード設定
-    directory: str = Field(default="downloads/fantia")
-    download_thumb: bool = Field(default=False)
-    priorize_webp: bool = Field(default=False)
-    use_server_filenames: bool = Field(default=False)
-
-    # HTTP設定
-    max_retries: int = Field(default=5, ge=0)
-    timeout_connect: float = Field(default=10.0, ge=0)
-    timeout_read: float = Field(default=30.0, ge=0)
-    timeout_write: float = Field(default=10.0, ge=0)
-    timeout_pool: float = Field(default=5.0, ge=0)
-
-    # 並列処理設定
-    concurrent_downloads: int = Field(default=3, ge=1)
-
-    # クッキーキャッシュ設定
-    enable_cookie_cache: bool = Field(default=True, description="Enable cookie caching")
-    cookie_cache_file: str = Field(
-        default="fantia_cookies.json", description="Cookie cache file path"
-    )
-
-    @field_validator("session_id")
-    @classmethod
-    def validate_session_id(cls, v: Optional[str]) -> Optional[str]:
-        """Validate session_id is not empty string."""
-        if v is not None and not v.strip():
-            raise ValueError("session_id cannot be empty string")
-        return v
-
-    model_config = {"extra": "forbid"}
 
 
 @singleton
