@@ -3,26 +3,28 @@
     "allow": [
       "Bash(uv run pytest:*)",
       "Bash(uv run ruff:*)",
-      "Bash(uv run mypy:*)"
+      "Bash(uv run mypy:*)",
+      "Bash(git commit:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   },
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Write|Edit|MultiEdit",
+        "matcher": "Edit|MultiEdit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '.tool_input.file_path | select(endswith(\".md\"))' | xargs -r prettier --write"
+            "command": "jq -r '.tool_input.file_path' | { read file_path; if echo \"$file_path\" | grep -q '\\.md$'; then prettier --write \"$file_path\"; fi; }"
           },
           {
             "type": "command",
-            "command": "jq -r '.tool_input.file_path | select(endswith(\".py\"))' | xargs -r ruff format"
+            "command": "jq -r '.tool_input.file_path' | { read file_path; if echo \"$file_path\" | grep -q '\\.py$'; then ruff format \"$file_path\"; fi; }"
           },
           {
             "type": "command",
-            "command": "jq -r '.tool_input.file_path | select(endswith(\".py\"))' | xargs -r ruff check --fix"
+            "command": "jq -r '.tool_input.file_path' | { read file_path; if echo \"$file_path\" | grep -q '\\.py$'; then ruff check --fix \"$file_path\"; fi; }"
           }
         ]
       }
