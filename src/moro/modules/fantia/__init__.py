@@ -1,14 +1,13 @@
-"""Fantia module for Moro, a Fantia downloader."""
+"""Fantia module."""
 
 import json
 import logging
 import os
 import re
 import time
-from abc import ABC, abstractmethod
 from datetime import datetime as dt
 from email.utils import parsedate_to_datetime
-from os import makedirs, path
+from os import makedirs
 from pathlib import Path
 from typing import Annotated, Any, Optional, Union
 from urllib.parse import urljoin, urlparse
@@ -16,287 +15,31 @@ from urllib.parse import urljoin, urlparse
 import httpx
 from bs4 import BeautifulSoup
 from injector import inject, singleton
-from pydantic import BaseModel, Field, field_validator
 from selenium import webdriver
 
-from moro.modules.common import CommonConfig
+from moro.modules.fantia.config import (
+    BASE_URL,
+    DOMAIN,
+    FANCLUB_POSTS_HTML,
+    LOGIN_SIGNIN_URL,
+    ME_API,
+    POST_API,
+    POST_URL,
+    UNICODE_CONTROL_MAP,
+    USER_AGENT,
+    FantiaConfig,
+)
+from moro.modules.fantia.domain import (
+    FantiaFile,
+    FantiaPhotoGallery,
+    FantiaPostData,
+    FantiaProduct,
+    FantiaText,
+    FantiaURL,
+    SessionIdProvider,
+)
 
 logger = logging.getLogger(__name__)
-
-FANTIA_URL_RE = re.compile(r"(?:https?://(?:(?:www\.)?(?:fantia\.jp/(fanclubs|posts)/)))([0-9]+)")
-EXTERNAL_LINKS_RE = re.compile(
-    r"(?:[\s]+)?((?:(?:https?://)?(?:(?:www\.)?(?:mega\.nz|mediafire\.com|(?:drive|docs)\.google\.com|youtube.com|dropbox.com)\/))[^\s]+)"
-)
-
-DOMAIN = "fantia.jp"
-BASE_URL = "https://fantia.jp/"
-
-LOGIN_SIGNIN_URL = "https://fantia.jp/sessions/signin"
-LOGIN_SESSION_URL = "https://fantia.jp/sessions"
-
-ME_API = "https://fantia.jp/api/v1/me"
-
-FANCLUB_API = "https://fantia.jp/api/v1/fanclubs/{}"
-FANCLUBS_FOLLOWING_API = "https://fantia.jp/api/v1/me/fanclubs"
-FANCLUBS_PAID_HTML = "https://fantia.jp/mypage/users/plans?type=not_free&page={}"
-FANCLUB_POSTS_HTML = "https://fantia.jp/fanclubs/{}/posts?page={}"
-
-POST_API = "https://fantia.jp/api/v1/posts/{}"
-POST_URL = "https://fantia.jp/posts/{}"
-POSTS_URL = "https://fantia.jp/posts"
-POST_RELATIVE_URL = "/posts/"
-
-TIMELINES_API = "https://fantia.jp/api/v1/me/timelines/posts?page={}&per=24"
-
-USER_AGENT = (
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/137.0.0.0 Safari/537.36"
-)
-
-CRAWLJOB_FILENAME = "external_links.crawljob"
-
-MIMETYPES = {
-    "image/jpeg": ".jpg",
-    "image/png": ".png",
-    "image/gif": ".gif",
-    "video/mp4": ".mp4",
-    "video/webm": ".webm",
-}
-
-UNICODE_CONTROL_MAP = dict.fromkeys(range(32))
-
-
-@singleton
-class FantiaConfig(BaseModel):
-    """Configuration for the Fantia client."""
-
-    # 認証設定
-    session_id: Optional[str] = Field(default=None, min_length=1)
-
-    # selenium設定
-    chrome_data_dir: str = Field(
-        default="chrome_userdata", description="Directory for Selenium user data"
-    )
-
-    # ダウンロード設定
-    directory: str = Field(default="downloads/fantia")
-    download_thumb: bool = Field(default=False)
-    priorize_webp: bool = Field(default=False)
-    use_server_filenames: bool = Field(default=False)
-
-    # HTTP設定
-    max_retries: int = Field(default=5, ge=0)
-    timeout_connect: float = Field(default=10.0, ge=0)
-    timeout_read: float = Field(default=30.0, ge=0)
-    timeout_write: float = Field(default=10.0, ge=0)
-    timeout_pool: float = Field(default=5.0, ge=0)
-
-    # 並列処理設定
-    concurrent_downloads: int = Field(default=3, ge=1)
-
-    # クッキーキャッシュ設定
-    enable_cookie_cache: bool = Field(default=True, description="Enable cookie caching")
-    cookie_cache_file: str = Field(
-        default="fantia_cookies.json", description="Cookie cache file path"
-    )
-
-    @field_validator("session_id")
-    @classmethod
-    def validate_session_id(cls, v: Optional[str]) -> Optional[str]:
-        """Validate session_id is not empty string."""
-        if v is not None and not v.strip():
-            raise ValueError("session_id cannot be empty string")
-        return v
-
-
-class SessionIdProvider(ABC):
-    """Abstract base class for providing Fantia session IDs."""
-
-    @abstractmethod
-    def get_cookies(self) -> dict[str, str]:
-        """Get all Fantia-related cookies.
-
-        Returns:
-            Dictionary containing cookies. May include:
-            - _session_id: Main session identifier
-            - jp_chatplus_vtoken: Chat plus token
-            - _f_v_k_1: Fantia verification key
-        """
-        pass
-
-
-class SeleniumSessionIdProvider(SessionIdProvider):
-    """Selenium-based SessionId provider that uses Chrome WebDriver to login to Fantia."""
-
-    def __init__(self, config: CommonConfig, fantia_config: "FantiaConfig") -> None:
-        """Initialize the Selenium session ID provider.
-
-        Args:
-            config: CommonConfig instance for configuration.
-            fantia_config: FantiaConfig instance for cookie caching options.
-        """
-        self._chrome_user_data = path.join(config.user_cache_dir, fantia_config.chrome_data_dir)
-        self._enable_cookie_cache = fantia_config.enable_cookie_cache
-        self._cookie_cache_file = path.join(config.user_cache_dir, fantia_config.cookie_cache_file)
-
-    def _load_cached_cookies(self) -> dict[str, str]:
-        """Load cached cookies from file.
-
-        Returns:
-            Dictionary of cached cookies, empty dict if not found or invalid.
-        """
-        if not self._enable_cookie_cache:
-            return {}
-
-        try:
-            cache_file = Path(self._cookie_cache_file)
-            if not cache_file.exists():
-                return {}
-
-            with cache_file.open("r", encoding="utf-8") as f:
-                data = json.load(f)
-
-            # Validate the structure
-            if isinstance(data, dict) and "cookies" in data and "timestamp" in data:
-                return data["cookies"]  # type: ignore
-        except Exception as e:
-            logger.warning(f"Failed to load cached cookies: {e}")
-
-        return {}
-
-    def _save_cookies_to_cache(self, cookies: dict[str, str]) -> None:
-        """Save cookies to cache file.
-
-        Args:
-            cookies: Dictionary of cookies to save.
-        """
-        if not self._enable_cookie_cache or not cookies:
-            return
-
-        try:
-            cache_file = Path(self._cookie_cache_file)
-            cache_file.parent.mkdir(parents=True, exist_ok=True)
-
-            data: dict[str, Any] = {
-                "cookies": cookies,
-                "timestamp": dt.now().isoformat(),
-            }
-
-            with cache_file.open("w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
-
-            # Set file permissions to user read/write only for security
-            cache_file.chmod(0o600)
-
-            logger.info(f"Saved {len(cookies)} cookies to cache: {cache_file}")
-        except Exception as e:
-            logger.warning(f"Failed to save cookies to cache: {e}")
-
-    def _is_session_valid(self, cookies: dict[str, str]) -> bool:
-        """Check if cached session is still valid.
-
-        Args:
-            cookies: Dictionary of cookies to validate.
-
-        Returns:
-            True if session is valid, False otherwise.
-        """
-        if not cookies.get("_session_id"):
-            return False
-
-        try:
-            # Create a temporary httpx client to test the session
-            test_cookies = dict(cookies.items())
-
-            with httpx.Client(cookies=test_cookies) as client:
-                response = client.get(ME_API, timeout=10.0)
-                return response.is_success or response.status_code == 304
-
-        except Exception as e:
-            logger.debug(f"Session validation failed: {e}")
-            return False
-
-    def get_cookies(self) -> dict[str, str]:
-        """Get all Fantia-related cookies with caching support.
-
-        First attempts to load cached cookies and validate them.
-        If cached cookies are invalid or not found, performs Selenium-based login.
-
-        Returns:
-            Dictionary containing available cookies. May include:
-            - _session_id: Main session identifier
-            - jp_chatplus_vtoken: Chat plus token
-            - _f_v_k_1: Fantia verification key
-        """
-        # Try to load cached cookies first
-        cached_cookies = self._load_cached_cookies()
-        if cached_cookies and self._is_session_valid(cached_cookies):
-            logger.info(f"Using cached cookies: {list(cached_cookies.keys())}")
-            return cached_cookies
-
-        # Cached cookies not valid, perform fresh login
-        logger.info("Cached cookies invalid or not found, performing fresh login")
-        result = self._perform_selenium_login()
-
-        # Save new cookies to cache
-        if result:
-            self._save_cookies_to_cache(result)
-
-        return result
-
-    def _perform_selenium_login(self) -> dict[str, str]:
-        """Perform Selenium-based login to obtain fresh cookies.
-
-        Returns:
-            Dictionary containing fresh cookies from Selenium login.
-        """
-        target_cookies = ["_session_id", "jp_chatplus_vtoken", "_f_v_k_1"]
-        result: dict[str, str] = {}
-
-        try:
-            options = self._create_chrome_options()
-
-            with webdriver.Chrome(options=options) as driver:
-                driver.get(LOGIN_SIGNIN_URL)
-
-                # Wait for user to complete login manually
-                while True:
-                    parsed_url = urlparse(driver.current_url)
-                    if parsed_url.path == "/" and parsed_url.netloc == DOMAIN:
-                        # Successfully logged in, extract target cookies
-                        cookies: list[dict[str, str]] = driver.get_cookies()  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
-
-                        for cookie in cookies:
-                            if cookie["name"] in target_cookies:
-                                result[cookie["name"]] = str(cookie["value"])
-
-                        if result:
-                            cookie_names = list(result.keys())
-                            count = len(result)
-                            logger.info(f"Obtained {count} cookies via Selenium: {cookie_names}")
-                        else:
-                            logger.warning("Login successful but no target cookies found")
-                        break
-
-        except Exception as e:
-            logger.error(f"Error during Selenium login: {e}")
-
-        return result
-
-    def _create_chrome_options(self) -> webdriver.ChromeOptions:
-        """Create Chrome options for the WebDriver.
-
-        Returns:
-            Configured ChromeOptions instance.
-        """
-        options = webdriver.ChromeOptions()
-
-        if self._chrome_user_data:
-            makedirs(self._chrome_user_data, exist_ok=True)
-            options.add_argument(f"--user-data-dir={self._chrome_user_data}")
-
-        return options
 
 
 @singleton
@@ -488,70 +231,6 @@ def create_chrome_options(userdata: str) -> webdriver.ChromeOptions:
     options = webdriver.ChromeOptions()
     options.add_argument(f"--user-data-dir={userdata}")
     return options
-
-
-class FantiaURL(BaseModel):
-    """Data model for Fantia post file."""
-
-    url: Annotated[str, Field(description="The URL to download the file")]
-    ext: Annotated[str, Field(description="The file extension")]
-
-
-class FantiaPhotoGallery(BaseModel):
-    """Data model for Fantia post photo gallery."""
-
-    id: Annotated[str, Field(description="The ID of the photo")]
-    title: Annotated[str, Field(description="The title of the photo")]
-    comment: Annotated[Optional[str], Field(description="The comment of the photo")]
-    photos: Annotated[list[FantiaURL], Field(description="The URLs of the photos in the gallery")]
-
-
-class FantiaFile(BaseModel):
-    """Data model for Fantia post file."""
-
-    id: Annotated[str, Field(description="The ID of the file")]
-    title: Annotated[str, Field(description="The title of the file")]
-    comment: Annotated[Optional[str], Field(description="The comment of the file")]
-    url: Annotated[str, Field(description="The URL to download the file")]
-    name: Annotated[str, Field(description="The name of the file")]
-
-
-class FantiaText(BaseModel):
-    """Data model for Fantia post text content."""
-
-    id: Annotated[str, Field(description="The ID of the text content")]
-    title: Annotated[str, Field(description="The title of the text content")]
-    comment: Annotated[Optional[str], Field(description="The comment of the text content")]
-
-
-class FantiaProduct(BaseModel):
-    """Data model for Fantia product."""
-
-    id: Annotated[str, Field(description="The ID of the product")]
-    title: Annotated[str, Field(description="The title of the product")]
-    comment: Annotated[Optional[str], Field(description="The comment of the product")]
-    name: Annotated[str, Field(description="The name of the product")]
-    url: Annotated[str, Field(description="The URL of the product")]
-
-
-class FantiaPostData(BaseModel):
-    """Data model for Fantia post data."""
-
-    id: Annotated[str, Field(description="The ID of the post")]
-    title: Annotated[str, Field(description="The title of the post")]
-    creator_name: Annotated[str, Field(description="The name of the post creator")]
-    creator_id: Annotated[str, Field(description="The ID of the post creator")]
-    contents: Annotated[list[Any], Field(description="The contents of the post")]
-    contents_photo_gallery: Annotated[
-        list[FantiaPhotoGallery], Field(description="The photo gallery of the post")
-    ]
-    contents_files: Annotated[list[FantiaFile], Field(description="The files of the post")]
-    contents_text: Annotated[list[FantiaText], Field(description="The text contents of the post")]
-    contents_products: Annotated[list[FantiaProduct], Field(description="The products of the post")]
-    posted_at: Annotated[int, Field(description="The timestamp when the post was created")]
-    converted_at: Annotated[int, Field(description="The timestamp when the post was converted")]
-    comment: Annotated[Optional[str], Field(description="The comment of the post")]
-    thumbnail: Annotated[Optional[FantiaURL], Field(description="The URL of the post thumbnail")]
 
 
 def _fetch_post_data(client: FantiaClient, post_id: str) -> dict[str, Any]:

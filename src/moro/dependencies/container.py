@@ -5,7 +5,8 @@ from typing import Callable, TypeVar
 from injector import Binder, Injector
 
 from moro.config.settings import ConfigRepository
-from moro.modules.fantia import SeleniumSessionIdProvider, SessionIdProvider
+from moro.modules.fantia.domain import SessionIdProvider
+from moro.modules.fantia.infrastructure import SeleniumSessionIdProvider
 
 _T = TypeVar("_T")
 

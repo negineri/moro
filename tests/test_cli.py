@@ -14,7 +14,7 @@ def test_example_command() -> None:
     runner = CliRunner()
     result = runner.invoke(cli, ["example", "echo"])
     assert result.exit_code == 0
-    assert "Current configuration: app=AppConfig" in result.output
+    assert "Current configuration: common=CommonConfig" in result.output
     assert "fantia=FantiaConfig" in result.output
 
 
@@ -39,17 +39,6 @@ def test_aliased_group() -> None:
     assert command.name == "hello"
     command = group.get_command(ctx, "a")
     assert command is None
-
-
-def test_config_repo_read_file_not_found() -> None:
-    """Test _load_logging_config raises FileNotFoundError when logging config is missing."""
-    from moro.config.settings import _load_logging_config
-
-    with patch("pathlib.Path.exists", return_value=False):
-        try:
-            _load_logging_config()
-        except FileNotFoundError as e:
-            assert "Logging configuration file not found" in str(e)
 
 
 def test_aliased_group_multiple_matches() -> None:

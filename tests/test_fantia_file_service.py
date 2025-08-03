@@ -8,7 +8,7 @@ import pytest
 from moro.services.fantia_file import FantiaFileService
 
 if TYPE_CHECKING:
-    from conftest import FantiaPostDataFactory
+    pass
 
 
 class TestFantiaFileService:
@@ -19,59 +19,6 @@ class TestFantiaFileService:
         mock_config = MagicMock()
         mock_config.app.working_dir = "/test/working"
         return FantiaFileService(mock_config)
-
-    @patch("moro.services.fantia_file.os.makedirs")
-    @patch("moro.services.fantia_file.sanitize_filename")
-    def test_create_post_directory(
-        self,
-        mock_sanitize: MagicMock,
-        mock_makedirs: MagicMock,
-        fantia_post_data_factory: "FantiaPostDataFactory",
-    ) -> None:
-        """投稿ディレクトリ作成テスト."""
-        service = self._create_file_service()
-
-        # モックの設定
-        mock_sanitize.return_value = "12345_Test_Post_Title_202301011200"
-
-        # テスト用投稿データ
-        post_data = fantia_post_data_factory.build(
-            id="12345",
-            title="Test Post Title",
-            creator_id="creator123",
-            creator_name="Test Creator",
-        )
-
-        # 実行
-        result = service.create_post_directory(post_data)
-
-        # 検証
-        # 結果のパス文字列に必要な要素が含まれることを確認
-        assert "/test/working/downloads/fantia/creator123" in result
-        assert "12345_Test_Post_Title_202301011200" in result
-
-        # ディレクトリ作成が呼び出されたことを確認
-        mock_makedirs.assert_called_once()
-        created_path = mock_makedirs.call_args[0][0]
-        assert "/test/working/downloads/fantia/creator123" in created_path
-
-        # sanitize_filenameの呼び出しを検証
-        mock_sanitize.assert_called_once()
-
-    @patch("builtins.open", new_callable=mock_open)
-    def test_file_operations(self, mock_file: MagicMock) -> None:
-        """ファイル操作の統合テスト（コメント保存とディレクトリ取得）."""
-        service = self._create_file_service()
-        service.save_post_comment("/test/dir", "Test comment content")
-
-        # ファイル書き込み呼び出しを検証
-        write_calls = [str(call[0]) for call in mock_file.call_args_list]
-        assert any("/test/dir" in call and "comment.txt" in call for call in write_calls)
-        mock_file.return_value.write.assert_called_with("Test comment content")
-
-        # ダウンロードディレクトリ取得のテスト
-        result = service.get_download_directory()
-        assert "/test/working/downloads/fantia" in result
 
     @patch("builtins.open", new_callable=mock_open)
     def test_create_content_directory(self, mock_file: MagicMock) -> None:

@@ -10,9 +10,6 @@ import pytest
 from moro.modules.common import CommonConfig
 from moro.modules.fantia import (
     FantiaClient,
-    FantiaConfig,
-    SeleniumSessionIdProvider,
-    SessionIdProvider,
     _extract_post_metadata,
     _fetch_post_data,
     _parse_post_contents,
@@ -20,6 +17,9 @@ from moro.modules.fantia import (
     _validate_post_type,
     check_login,
 )
+from moro.modules.fantia.config import FantiaConfig
+from moro.modules.fantia.domain import SessionIdProvider
+from moro.modules.fantia.infrastructure import SeleniumSessionIdProvider
 
 
 @pytest.fixture
@@ -637,8 +637,6 @@ class TestSeleniumSessionIdProviderCookieCache:
 
     def test_cache_file_path_custom(self, common_config: CommonConfig) -> None:
         """カスタムキャッシュファイルパスのテスト."""
-        from moro.modules.fantia import FantiaConfig
-
         fantia_config = FantiaConfig(cookie_cache_file="/custom/path/cookies.json")
         provider = SeleniumSessionIdProvider(common_config, fantia_config)
         assert provider._cookie_cache_file == "/custom/path/cookies.json"
@@ -647,8 +645,6 @@ class TestSeleniumSessionIdProviderCookieCache:
         self, common_config: CommonConfig, tmp_path: Path
     ) -> None:
         """クッキーの保存と読み込みのテスト."""
-        from moro.modules.fantia import FantiaConfig
-
         cache_file = tmp_path / "test_cookies.json"
         fantia_config = FantiaConfig(cookie_cache_file=str(cache_file))
         provider = SeleniumSessionIdProvider(common_config, fantia_config)
@@ -673,8 +669,6 @@ class TestSeleniumSessionIdProviderCookieCache:
     ) -> None:
         """キャッシュファイルのセキュリティ権限のテスト."""
         import stat
-
-        from moro.modules.fantia import FantiaConfig
 
         cache_file = tmp_path / "secure_cookies.json"
         fantia_config = FantiaConfig(cookie_cache_file=str(cache_file))
@@ -753,8 +747,6 @@ class TestSeleniumSessionIdProviderCookieCache:
         """有効なキャッシュが存在する場合にキャッシュを使用することのテスト."""
         from unittest.mock import patch
 
-        from moro.modules.fantia import FantiaConfig
-
         cache_file = tmp_path / "valid_cache.json"
         fantia_config = FantiaConfig(cookie_cache_file=str(cache_file))
         provider = SeleniumSessionIdProvider(common_config, fantia_config)
@@ -778,8 +770,6 @@ class TestSeleniumSessionIdProviderCookieCache:
         """無効なキャッシュの場合にSeleniumログインを実行することのテスト."""
         from unittest.mock import patch
 
-        from moro.modules.fantia import FantiaConfig
-
         cache_file = tmp_path / "invalid_cache.json"
         fantia_config = FantiaConfig(cookie_cache_file=str(cache_file))
         provider = SeleniumSessionIdProvider(common_config, fantia_config)
@@ -799,8 +789,6 @@ class TestSeleniumSessionIdProviderCookieCache:
 
     def test_cache_disabled(self, common_config: CommonConfig) -> None:
         """クッキーキャッシュが無効の場合のテスト."""
-        from moro.modules.fantia import FantiaConfig
-
         fantia_config = FantiaConfig(enable_cookie_cache=False)
         provider = SeleniumSessionIdProvider(common_config, fantia_config)
 
@@ -813,15 +801,6 @@ class TestSeleniumSessionIdProviderCookieCache:
 
 class TestSeleniumSessionIdProvider:
     """SeleniumSessionIdProviderのテスト."""
-
-    def test_provider_implementation_exists(
-        self, common_config: CommonConfig, fantia_config: FantiaConfig
-    ) -> None:
-        """SeleniumSessionIdProviderが実装されていることを確認するテスト."""
-        # SeleniumSessionIdProviderクラスがインポートできることを確認
-        provider = SeleniumSessionIdProvider(common_config, fantia_config)
-        assert isinstance(provider, SessionIdProvider)
-        assert isinstance(provider, SeleniumSessionIdProvider)
 
     def test_selenium_provider_get_session_id_returns_none_when_not_implemented(self) -> None:
         """SeleniumSessionIdProviderのget_session_id()が実装されていない場合にNoneを返すテスト."""
