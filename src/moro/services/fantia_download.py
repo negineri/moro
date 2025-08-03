@@ -6,12 +6,8 @@ from logging import getLogger
 from injector import inject, singleton
 
 from moro.config.settings import ConfigRepository
-from moro.modules.fantia import (
-    FantiaClient,
-    FantiaFile,
-    FantiaPhotoGallery,
-    FantiaPostData,
-)
+from moro.modules.fantia import FantiaClient
+from moro.modules.fantia.domain import FantiaFile, FantiaPhotoGallery, FantiaPostData
 
 logger = getLogger(__name__)
 

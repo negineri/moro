@@ -97,12 +97,10 @@ class TestFantiaDownloadService:
 
         # コメントファイルとギャラリー画像ファイルが作成されることを検証
         comment_files = [
-            call for call in write_calls
-            if "/test/path" in str(call) and "comment.txt" in str(call)
+            call for call in write_calls if "/test/path" in str(call) and "comment.txt" in str(call)
         ]
         jpg_files = [
-            call for call in write_calls
-            if "/test/path" in str(call) and ".jpg" in str(call)
+            call for call in write_calls if "/test/path" in str(call) and ".jpg" in str(call)
         ]
 
         assert len(comment_files) > 0

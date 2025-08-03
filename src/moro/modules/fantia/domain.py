@@ -85,3 +85,55 @@ class FantiaPostData(BaseModel):
     converted_at: Annotated[int, Field(description="The timestamp when the post was converted")]
     comment: Annotated[Optional[str], Field(description="The comment of the post")]
     thumbnail: Annotated[Optional[FantiaURL], Field(description="The URL of the post thumbnail")]
+
+
+# ===== Repository Interfaces =====
+
+
+class FantiaCreator(BaseModel):
+    """Data model for Fantia creator."""
+
+    id: Annotated[str, Field(description="The ID of the creator")]
+    name: Annotated[str, Field(description="The name of the creator")]
+    posts: Annotated[list[str], Field(description="List of post IDs by this creator")]
+
+
+class FantiaPostRepository(Protocol):
+    """Repository interface for Fantia post data access."""
+
+    def get(self, post_id: str) -> Optional[FantiaPostData]:
+        """Get a single post by ID.
+
+        Args:
+            post_id: The ID of the post to retrieve
+
+        Returns:
+            FantiaPostData if found, None otherwise
+        """
+        ...
+
+    def get_many(self, post_ids: list[str]) -> list[FantiaPostData]:
+        """Get multiple posts by IDs.
+
+        Args:
+            post_ids: List of post IDs to retrieve
+
+        Returns:
+            List of FantiaPostData for found posts (excludes not found)
+        """
+        ...
+
+
+class FantiaCreatorRepository(Protocol):
+    """Repository interface for Fantia creator data access."""
+
+    def get(self, creator_id: str) -> Optional[FantiaCreator]:
+        """Get a creator by ID.
+
+        Args:
+            creator_id: The ID of the creator to retrieve
+
+        Returns:
+            FantiaCreator if found, None otherwise
+        """
+        ...

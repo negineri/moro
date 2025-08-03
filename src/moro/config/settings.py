@@ -15,7 +15,7 @@ from injector import Binder
 from pydantic import BaseModel, Field
 
 from moro.modules.common import CommonConfig
-from moro.modules.fantia import FantiaConfig
+from moro.modules.fantia.config import FantiaConfig
 
 logger = logging.getLogger(__name__)
 

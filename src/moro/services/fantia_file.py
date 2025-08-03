@@ -8,11 +8,7 @@ from injector import inject, singleton
 from pathvalidate import sanitize_filename
 
 from moro.config.settings import ConfigRepository
-from moro.modules.fantia import (
-    FantiaPostData,
-    FantiaProduct,
-    FantiaText,
-)
+from moro.modules.fantia.domain import FantiaPostData, FantiaProduct, FantiaText
 
 logger = getLogger(__name__)
 
