@@ -1,6 +1,7 @@
 """Infrastructure for Fantia client."""
 
 import json
+from dataclasses import dataclass
 from datetime import datetime as dt
 from logging import getLogger
 from os import makedirs, path
@@ -12,8 +13,11 @@ import httpx
 from selenium import webdriver
 
 from moro.modules.common import CommonConfig
+from moro.modules.fantia import FantiaClient
 from moro.modules.fantia.config import DOMAIN, LOGIN_SIGNIN_URL, ME_API, FantiaConfig
-from moro.modules.fantia.domain import SessionIdProvider
+from moro.modules.fantia.domain import (
+    SessionIdProvider,
+)
 
 logger = getLogger(__name__)
 
@@ -189,3 +193,87 @@ class SeleniumSessionIdProvider(SessionIdProvider):
             options.add_argument(f"--user-data-dir={self._chrome_user_data}")
 
         return options
+
+
+# ===== Repository Implementations =====
+
+
+@dataclass
+class FantiaPostRepositoryImpl:
+    """Repository implementation for Fantia posts."""
+
+    _client: FantiaClient
+
+    def get(self, post_id: str) -> Any:
+        """Get a single post by ID.
+
+        Args:
+            post_id: The ID of the post to retrieve
+
+        Returns:
+            FantiaPostData if found, None otherwise
+        """
+        if not post_id or not post_id.strip():
+            return None
+
+        try:
+            from moro.modules.fantia import parse_post
+
+            return parse_post(self._client, post_id)
+        except Exception:
+            return None
+
+    def get_many(self, post_ids: list[str]) -> list[Any]:
+        """Get multiple posts by IDs.
+
+        Args:
+            post_ids: List of post IDs to retrieve
+
+        Returns:
+            List of FantiaPostData for found posts (excludes not found)
+        """
+        if not post_ids:
+            return []
+
+        results: list[Any] = []
+        for post_id in post_ids:
+            post = self.get(post_id)
+            if post is not None:
+                results.append(post)
+        return results
+
+
+@dataclass
+class FantiaCreatorRepositoryImpl:
+    """Repository implementation for Fantia creators."""
+
+    _client: FantiaClient
+
+    def get(self, creator_id: str) -> Any:
+        """Get a creator by ID.
+
+        Args:
+            creator_id: The ID of the creator to retrieve
+
+        Returns:
+            FantiaCreator if found, None otherwise
+        """
+        if not creator_id or not creator_id.strip():
+            return None
+
+        try:
+            from moro.modules.fantia import get_posts_by_user
+            from moro.modules.fantia.domain import FantiaCreator
+
+            # 投稿一覧を取得
+            posts = get_posts_by_user(self._client, creator_id)
+
+            # FantiaCreator エンティティを作成
+            # NOTE: 現在は creator_id をそのまま name として使用（後で改善）
+            return FantiaCreator(
+                id=creator_id,
+                name=f"Creator {creator_id}",  # プレースホルダー
+                posts=posts,
+            )
+        except Exception:
+            return None

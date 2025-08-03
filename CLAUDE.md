@@ -11,11 +11,11 @@
 uv run moro
 
 # テスト
-pytest --cov=src --cov-report=term-missing
+uv run pytest --cov=src --cov-report=term-missing
 
 # コード品質チェック
-ruff check
-mypy
+uv run ruff check
+uv run mypy
 ```
 
 ## アーキテクチャ
