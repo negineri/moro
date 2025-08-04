@@ -5,8 +5,16 @@ from typing import Callable, TypeVar
 from injector import Binder, Injector
 
 from moro.config.settings import ConfigRepository
-from moro.modules.fantia.domain import SessionIdProvider
-from moro.modules.fantia.infrastructure import SeleniumSessionIdProvider
+from moro.modules.fantia.domain import (
+    FantiaFanclubRepository,
+    FantiaPostRepository,
+    SessionIdProvider,
+)
+from moro.modules.fantia.infrastructure import (
+    FantiaFanclubRepositoryImpl,
+    FantiaPostRepositoryImpl,
+    SeleniumSessionIdProvider,
+)
 
 _T = TypeVar("_T")
 
@@ -14,6 +22,8 @@ _T = TypeVar("_T")
 def configure(binder: Binder) -> None:
     """Configure the dependency injection container."""
     binder.bind(SessionIdProvider, to=SeleniumSessionIdProvider)  # type: ignore[type-abstract]
+    binder.bind(FantiaPostRepository, to=FantiaPostRepositoryImpl)  # type: ignore[type-abstract]
+    binder.bind(FantiaFanclubRepository, to=FantiaFanclubRepositoryImpl)  # type: ignore[type-abstract]
 
 
 def create_injector(config: ConfigRepository) -> Injector:

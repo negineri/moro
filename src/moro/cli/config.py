@@ -22,7 +22,7 @@ def show() -> None:
     repo = ConfigRepository.create()
 
     click.echo("Current configuration:")
-    click.echo(repo.model_dump_json(indent=2, exclude_unset=True))
+    click.echo(repo.model_dump_json(indent=2))
 
 
 @config.command()

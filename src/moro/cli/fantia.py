@@ -4,6 +4,7 @@ Fantia CLI Module
 Provides a command-line interface for interacting with Fantia, including login functionality.
 """
 
+from logging import getLogger
 from logging.config import dictConfig
 
 import click
@@ -11,7 +12,10 @@ import click
 from moro.cli._utils import AliasedGroup
 from moro.config.settings import ConfigRepository
 from moro.dependencies.container import create_injector
+from moro.modules.fantia.usecases import FantiaGetFanclubUseCase
 from moro.usecases.fantia import FantiaDownloadPostsByUserUseCase, FantiaDownloadPostUseCase
+
+logger = getLogger(__name__)
 
 
 @click.group(cls=AliasedGroup)
@@ -58,3 +62,34 @@ def user(user_id: str, verbose: bool) -> None:
     injector = create_injector(config)
 
     injector.get(FantiaDownloadPostsByUserUseCase).execute(user_id)
+
+
+@fantia.command()
+@click.option(
+    "-i",
+    "--fanclub-id",
+    type=str,
+    required=True,
+    help="Fantia fanclub ID to download posts from.",
+)
+@click.option(
+    "-v",
+    "--verbose",
+    is_flag=True,
+    help="Enable verbose output.",
+)
+def fanclub(fanclub_id: str, verbose: bool) -> None:
+    """Download posts by fanclub ID."""
+    config = ConfigRepository.create()
+    if verbose:
+        config.common.logging_config["root"]["level"] = "INFO"
+        dictConfig(config.common.logging_config)
+
+    injector = create_injector(config)
+
+    fanclub = injector.get(FantiaGetFanclubUseCase).execute(fanclub_id)
+    if not fanclub:
+        click.echo(f"Fanclub with ID {fanclub_id} not found.")
+        return
+
+    click.echo(f"{fanclub.id} has {len(fanclub.posts)} posts.")

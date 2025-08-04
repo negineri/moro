@@ -10,6 +10,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx
+from injector import inject
 from selenium import webdriver
 
 from moro.modules.common import CommonConfig
@@ -22,6 +23,7 @@ from moro.modules.fantia.domain import (
 logger = getLogger(__name__)
 
 
+@inject
 class SeleniumSessionIdProvider(SessionIdProvider):
     """Selenium-based SessionId provider that uses Chrome WebDriver to login to Fantia."""
 
@@ -198,6 +200,7 @@ class SeleniumSessionIdProvider(SessionIdProvider):
 # ===== Repository Implementations =====
 
 
+@inject
 @dataclass
 class FantiaPostRepositoryImpl:
     """Repository implementation for Fantia posts."""
@@ -243,8 +246,9 @@ class FantiaPostRepositoryImpl:
         return results
 
 
+@inject
 @dataclass
-class FantiaCreatorRepositoryImpl:
+class FantiaFanclubRepositoryImpl:
     """Repository implementation for Fantia creators."""
 
     _client: FantiaClient
@@ -263,16 +267,14 @@ class FantiaCreatorRepositoryImpl:
 
         try:
             from moro.modules.fantia import get_posts_by_user
-            from moro.modules.fantia.domain import FantiaCreator
+            from moro.modules.fantia.domain import FantiaFanclub
 
             # 投稿一覧を取得
             posts = get_posts_by_user(self._client, creator_id)
 
             # FantiaCreator エンティティを作成
-            # NOTE: 現在は creator_id をそのまま name として使用（後で改善）
-            return FantiaCreator(
+            return FantiaFanclub(
                 id=creator_id,
-                name=f"Creator {creator_id}",  # プレースホルダー
                 posts=posts,
             )
         except Exception:

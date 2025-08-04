@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock
 
 from moro.modules.fantia import FantiaClient
-from moro.modules.fantia.domain import FantiaCreator, FantiaPostData
+from moro.modules.fantia.domain import FantiaFanclub, FantiaPostData
 
 # ===== Repository 実装の失敗テスト（Red フェーズ） =====
 
@@ -50,32 +50,32 @@ class TestFantiaPostRepositoryImpl:
         assert result == []
 
 
-class TestFantiaCreatorRepositoryImpl:
-    """FantiaCreatorRepositoryImpl の失敗テスト（Red フェーズ）."""
+class TestFantiaFanclubRepositoryImpl:
+    """FantiaFanclubRepositoryImpl の失敗テスト（Red フェーズ）."""
 
     def test_repository_implementation_can_be_imported(self) -> None:
         """Repository 実装が正しくインポートできることを確認するテスト."""
-        from moro.modules.fantia.infrastructure import FantiaCreatorRepositoryImpl
+        from moro.modules.fantia.infrastructure import FantiaFanclubRepositoryImpl
 
         # Repository 実装が存在することを確認
-        assert FantiaCreatorRepositoryImpl is not None
+        assert FantiaFanclubRepositoryImpl is not None
 
     def test_repository_can_be_instantiated(self) -> None:
         """Repository が正しくインスタンス化できることを確認するテスト."""
-        from moro.modules.fantia.infrastructure import FantiaCreatorRepositoryImpl
+        from moro.modules.fantia.infrastructure import FantiaFanclubRepositoryImpl
 
         mock_client = MagicMock(spec=FantiaClient)
-        repo = FantiaCreatorRepositoryImpl(mock_client)
+        repo = FantiaFanclubRepositoryImpl(mock_client)
 
         assert repo is not None
         assert hasattr(repo, "get")
 
     def test_get_method_returns_none_for_empty_id(self) -> None:
         """空のIDで None が返されることを確認するテスト."""
-        from moro.modules.fantia.infrastructure import FantiaCreatorRepositoryImpl
+        from moro.modules.fantia.infrastructure import FantiaFanclubRepositoryImpl
 
         mock_client = MagicMock(spec=FantiaClient)
-        repo = FantiaCreatorRepositoryImpl(mock_client)
+        repo = FantiaFanclubRepositoryImpl(mock_client)
 
         result = repo.get("")
         assert result is None
@@ -136,17 +136,17 @@ class TestFantiaPostRepositoryImplBehavior:
             assert result[0].id == "valid_post"
 
 
-class TestFantiaCreatorRepositoryImplBehavior:
-    """FantiaCreatorRepositoryImpl の動作テスト."""
+class TestFantiaFanclubRepositoryImplBehavior:
+    """FantiaFanclubRepositoryImpl の動作テスト."""
 
     def test_get_returns_creator_for_valid_id(self) -> None:
-        """有効なクリエイターIDで FantiaCreator が返されることのテスト."""
+        """有効なクリエイターIDで FantiaFanclub が返されることのテスト."""
         from unittest.mock import patch
 
-        from moro.modules.fantia.infrastructure import FantiaCreatorRepositoryImpl
+        from moro.modules.fantia.infrastructure import FantiaFanclubRepositoryImpl
 
         mock_client = MagicMock(spec=FantiaClient)
-        repo = FantiaCreatorRepositoryImpl(mock_client)
+        repo = FantiaFanclubRepositoryImpl(mock_client)
 
         # Mock get_posts_by_user to return valid posts
         def mock_get_posts_by_user(client: FantiaClient, creator_id: str) -> list[str]:
@@ -155,7 +155,7 @@ class TestFantiaCreatorRepositoryImplBehavior:
         with patch("moro.modules.fantia.get_posts_by_user", side_effect=mock_get_posts_by_user):
             result = repo.get("valid_creator_id")
             assert result is not None
-            assert isinstance(result, FantiaCreator)
+            assert isinstance(result, FantiaFanclub)
             assert result.id == "valid_creator_id"
             assert result.posts == ["post1", "post2", "post3"]
 
@@ -163,10 +163,10 @@ class TestFantiaCreatorRepositoryImplBehavior:
         """存在しないクリエイターIDで None が返されることのテスト."""
         from unittest.mock import patch
 
-        from moro.modules.fantia.infrastructure import FantiaCreatorRepositoryImpl
+        from moro.modules.fantia.infrastructure import FantiaFanclubRepositoryImpl
 
         mock_client = MagicMock(spec=FantiaClient)
-        repo = FantiaCreatorRepositoryImpl(mock_client)
+        repo = FantiaFanclubRepositoryImpl(mock_client)
 
         # Mock get_posts_by_user to raise an exception for invalid ID
         def mock_get_posts_by_user(client: FantiaClient, creator_id: str) -> list[str]:
@@ -180,10 +180,10 @@ class TestFantiaCreatorRepositoryImplBehavior:
         """クリエイター取得時に投稿一覧が含まれることのテスト."""
         from unittest.mock import patch
 
-        from moro.modules.fantia.infrastructure import FantiaCreatorRepositoryImpl
+        from moro.modules.fantia.infrastructure import FantiaFanclubRepositoryImpl
 
         mock_client = MagicMock(spec=FantiaClient)
-        repo = FantiaCreatorRepositoryImpl(mock_client)
+        repo = FantiaFanclubRepositoryImpl(mock_client)
 
         # Mock get_posts_by_user to return posts
         mock_posts = ["post1", "post2", "post3"]
@@ -210,12 +210,12 @@ class TestRepositoryIntegration:
         from unittest.mock import patch
 
         from moro.modules.fantia.infrastructure import (
-            FantiaCreatorRepositoryImpl,
+            FantiaFanclubRepositoryImpl,
             FantiaPostRepositoryImpl,
         )
 
         mock_client = MagicMock(spec=FantiaClient)
-        creator_repo = FantiaCreatorRepositoryImpl(mock_client)
+        creator_repo = FantiaFanclubRepositoryImpl(mock_client)
         post_repo = FantiaPostRepositoryImpl(mock_client)
 
         # Mock get_posts_by_user and parse_post
@@ -259,12 +259,12 @@ class TestRepositoryIntegration:
     def test_repositories_share_same_client(self) -> None:
         """Repository が同じクライアントを共有することのテスト."""
         from moro.modules.fantia.infrastructure import (
-            FantiaCreatorRepositoryImpl,
+            FantiaFanclubRepositoryImpl,
             FantiaPostRepositoryImpl,
         )
 
         mock_client = MagicMock(spec=FantiaClient)
-        creator_repo = FantiaCreatorRepositoryImpl(mock_client)
+        creator_repo = FantiaFanclubRepositoryImpl(mock_client)
         post_repo = FantiaPostRepositoryImpl(mock_client)
 
         # 同じクライアントインスタンスを使用していることを確認
@@ -318,10 +318,10 @@ class TestBackwardCompatibility:
         """CreatorRepository が既存の get_posts_by_user() と互換性があることのテスト."""
         from unittest.mock import patch
 
-        from moro.modules.fantia.infrastructure import FantiaCreatorRepositoryImpl
+        from moro.modules.fantia.infrastructure import FantiaFanclubRepositoryImpl
 
         mock_client = MagicMock(spec=FantiaClient)
-        repo = FantiaCreatorRepositoryImpl(mock_client)
+        repo = FantiaFanclubRepositoryImpl(mock_client)
         creator_id = "test_creator_id"
         expected_posts = ["post1", "post2", "post3"]
 
@@ -368,10 +368,10 @@ class TestRepositoryErrorHandling:
 
         import httpx
 
-        from moro.modules.fantia.infrastructure import FantiaCreatorRepositoryImpl
+        from moro.modules.fantia.infrastructure import FantiaFanclubRepositoryImpl
 
         mock_client = MagicMock(spec=FantiaClient)
-        repo = FantiaCreatorRepositoryImpl(mock_client)
+        repo = FantiaFanclubRepositoryImpl(mock_client)
 
         # get_posts_by_user が認証エラーを発生させるモック
         mock_response = MagicMock()

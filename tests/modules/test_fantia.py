@@ -27,6 +27,7 @@ def common_config(tmp_path: Path) -> CommonConfig:
     """CommonConfigのテスト用インスタンスを提供するフィクスチャ."""
     return CommonConfig(
         user_data_dir=str(tmp_path / "user_data"),
+        user_cache_dir=str(tmp_path / "cache"),
         working_dir=str(tmp_path / "working"),
         jobs=4,
     )

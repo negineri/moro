@@ -8,9 +8,9 @@ format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 [common.logging_config.handlers.console]
 class = "logging.StreamHandler"
 formatter = "default"
-level = "INFO"
+level = "DEBUG"
 stream = "ext://sys.stdout"
 
-[common.logging_config.loggers.default]
+[common.logging_config.root]
 handlers = ["console"]
 level = "WARNING"

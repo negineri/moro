@@ -90,12 +90,11 @@ class FantiaPostData(BaseModel):
 # ===== Repository Interfaces =====
 
 
-class FantiaCreator(BaseModel):
-    """Data model for Fantia creator."""
+class FantiaFanclub(BaseModel):
+    """Data model for Fantia fanclub."""
 
-    id: Annotated[str, Field(description="The ID of the creator")]
-    name: Annotated[str, Field(description="The name of the creator")]
-    posts: Annotated[list[str], Field(description="List of post IDs by this creator")]
+    id: Annotated[str, Field(description="The ID of the fanclub")]
+    posts: Annotated[list[str], Field(description="List of post IDs by this fanclub")]
 
 
 class FantiaPostRepository(Protocol):
@@ -124,16 +123,16 @@ class FantiaPostRepository(Protocol):
         ...
 
 
-class FantiaCreatorRepository(Protocol):
-    """Repository interface for Fantia creator data access."""
+class FantiaFanclubRepository(Protocol):
+    """Repository interface for Fantia fanclub data access."""
 
-    def get(self, creator_id: str) -> Optional[FantiaCreator]:
-        """Get a creator by ID.
+    def get(self, fanclub_id: str) -> Optional[FantiaFanclub]:
+        """Get a fanclub by ID.
 
         Args:
-            creator_id: The ID of the creator to retrieve
+            fanclub_id: The ID of the fanclub to retrieve
 
         Returns:
-            FantiaCreator if found, None otherwise
+            FantiaFanclub if found, None otherwise
         """
         ...
