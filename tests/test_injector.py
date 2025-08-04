@@ -1,10 +1,13 @@
 """injectorのテスト"""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from os import getenv
-from typing import Callable
 
 from injector import Binder, Injector, inject
+from tests.common import with_injection
+
+from moro.config.settings import CommonConfig
 
 
 @inject
@@ -53,3 +56,8 @@ def test_injector() -> None:
 def test_evn() -> None:
     test = getenv("MORO_TEST", "default")
     print(f"MORO_TEST: {test}")  # noqa: T201
+
+
+@with_injection
+def test_with_injection(common_config: CommonConfig) -> None:
+    assert isinstance(common_config, CommonConfig)
