@@ -3,6 +3,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from os import getenv
+from pathlib import Path
 
 from injector import Binder, Injector, inject
 from tests.common import with_injection
@@ -59,5 +60,7 @@ def test_evn() -> None:
 
 
 @with_injection
-def test_with_injection(common_config: CommonConfig) -> None:
+def test_with_injection(common_config: CommonConfig, tmp_path: Path) -> None:
+    print(f"common_config: {common_config}")  # noqa: T201
+    print(f"tmp_path: {tmp_path}")  # noqa: T201
     assert isinstance(common_config, CommonConfig)
