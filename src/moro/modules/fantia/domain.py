@@ -1,6 +1,6 @@
 """Domain model for Fantia client."""
 
-from typing import Annotated, Any, Optional, Protocol
+from typing import Annotated, Any, Protocol
 
 from pydantic import BaseModel, Field
 
@@ -35,7 +35,7 @@ class FantiaPhotoGallery(BaseModel):
 
     id: Annotated[str, Field(description="The ID of the photo")]
     title: Annotated[str, Field(description="The title of the photo")]
-    comment: Annotated[Optional[str], Field(description="The comment of the photo")]
+    comment: Annotated[str | None, Field(description="The comment of the photo")]
     photos: Annotated[list[FantiaURL], Field(description="The URLs of the photos in the gallery")]
 
 
@@ -44,7 +44,7 @@ class FantiaFile(BaseModel):
 
     id: Annotated[str, Field(description="The ID of the file")]
     title: Annotated[str, Field(description="The title of the file")]
-    comment: Annotated[Optional[str], Field(description="The comment of the file")]
+    comment: Annotated[str | None, Field(description="The comment of the file")]
     url: Annotated[str, Field(description="The URL to download the file")]
     name: Annotated[str, Field(description="The name of the file")]
 
@@ -54,7 +54,7 @@ class FantiaText(BaseModel):
 
     id: Annotated[str, Field(description="The ID of the text content")]
     title: Annotated[str, Field(description="The title of the text content")]
-    comment: Annotated[Optional[str], Field(description="The comment of the text content")]
+    comment: Annotated[str | None, Field(description="The comment of the text content")]
 
 
 class FantiaProduct(BaseModel):
@@ -62,7 +62,7 @@ class FantiaProduct(BaseModel):
 
     id: Annotated[str, Field(description="The ID of the product")]
     title: Annotated[str, Field(description="The title of the product")]
-    comment: Annotated[Optional[str], Field(description="The comment of the product")]
+    comment: Annotated[str | None, Field(description="The comment of the product")]
     name: Annotated[str, Field(description="The name of the product")]
     url: Annotated[str, Field(description="The URL of the product")]
 
@@ -83,8 +83,8 @@ class FantiaPostData(BaseModel):
     contents_products: Annotated[list[FantiaProduct], Field(description="The products of the post")]
     posted_at: Annotated[int, Field(description="The timestamp when the post was created")]
     converted_at: Annotated[int, Field(description="The timestamp when the post was converted")]
-    comment: Annotated[Optional[str], Field(description="The comment of the post")]
-    thumbnail: Annotated[Optional[FantiaURL], Field(description="The URL of the post thumbnail")]
+    comment: Annotated[str | None, Field(description="The comment of the post")]
+    thumbnail: Annotated[FantiaURL | None, Field(description="The URL of the post thumbnail")]
 
 
 # ===== Repository Interfaces =====
@@ -100,7 +100,7 @@ class FantiaFanclub(BaseModel):
 class FantiaPostRepository(Protocol):
     """Repository interface for Fantia post data access."""
 
-    def get(self, post_id: str) -> Optional[FantiaPostData]:
+    def get(self, post_id: str) -> FantiaPostData | None:
         """Get a single post by ID.
 
         Args:
@@ -126,7 +126,7 @@ class FantiaPostRepository(Protocol):
 class FantiaFanclubRepository(Protocol):
     """Repository interface for Fantia fanclub data access."""
 
-    def get(self, fanclub_id: str) -> Optional[FantiaFanclub]:
+    def get(self, fanclub_id: str) -> FantiaFanclub | None:
         """Get a fanclub by ID.
 
         Args:

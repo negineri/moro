@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock
 
 from moro.modules.fantia import FantiaClient
+from moro.modules.fantia.config import FantiaConfig
 from moro.modules.fantia.domain import FantiaFanclub, FantiaPostData
 
 # ===== Repository 実装の失敗テスト（Red フェーズ） =====
@@ -23,7 +24,8 @@ class TestFantiaPostRepositoryImpl:
         from moro.modules.fantia.infrastructure import FantiaPostRepositoryImpl
 
         mock_client = MagicMock(spec=FantiaClient)
-        repo = FantiaPostRepositoryImpl(mock_client)
+        mock_fantia_config = MagicMock(spec=FantiaConfig)
+        repo = FantiaPostRepositoryImpl(mock_client, mock_fantia_config)
 
         assert repo is not None
         assert hasattr(repo, "get")
@@ -34,7 +36,8 @@ class TestFantiaPostRepositoryImpl:
         from moro.modules.fantia.infrastructure import FantiaPostRepositoryImpl
 
         mock_client = MagicMock(spec=FantiaClient)
-        repo = FantiaPostRepositoryImpl(mock_client)
+        mock_fantia_config = MagicMock(spec=FantiaConfig)
+        repo = FantiaPostRepositoryImpl(mock_client, mock_fantia_config)
 
         result = repo.get("")
         assert result is None
@@ -44,7 +47,8 @@ class TestFantiaPostRepositoryImpl:
         from moro.modules.fantia.infrastructure import FantiaPostRepositoryImpl
 
         mock_client = MagicMock(spec=FantiaClient)
-        repo = FantiaPostRepositoryImpl(mock_client)
+        mock_fantia_config = MagicMock(spec=FantiaConfig)
+        repo = FantiaPostRepositoryImpl(mock_client, mock_fantia_config)
 
         result = repo.get_many([])
         assert result == []
@@ -94,8 +98,9 @@ class TestFantiaPostRepositoryImplBehavior:
         mock_client = MagicMock(spec=FantiaClient)
         # Mock で例外を発生させる
         mock_client.get.side_effect = Exception("Test error")
+        mock_fantia_config = MagicMock(spec=FantiaConfig)
 
-        repo = FantiaPostRepositoryImpl(mock_client)
+        repo = FantiaPostRepositoryImpl(mock_client, mock_fantia_config)
         result = repo.get("test_post_id")
 
         assert result is None
@@ -107,7 +112,8 @@ class TestFantiaPostRepositoryImplBehavior:
         from moro.modules.fantia.infrastructure import FantiaPostRepositoryImpl
 
         mock_client = MagicMock(spec=FantiaClient)
-        repo = FantiaPostRepositoryImpl(mock_client)
+        mock_fantia_config = MagicMock(spec=FantiaConfig)
+        repo = FantiaPostRepositoryImpl(mock_client, mock_fantia_config)
 
         # Mock parse_post to return data for some IDs and raise exceptions for others
         def mock_parse_post(client: FantiaClient, post_id: str) -> FantiaPostData:
@@ -192,7 +198,7 @@ class TestFantiaFanclubRepositoryImplBehavior:
             return mock_posts
 
         with patch("moro.modules.fantia.get_posts_by_user", side_effect=mock_get_posts_by_user):
-            result = repo.get("creator_with_posts")
+            result: FantiaFanclub = repo.get("creator_with_posts")
             assert result is not None
             assert isinstance(result.posts, list)
             assert len(result.posts) > 0
@@ -215,8 +221,9 @@ class TestRepositoryIntegration:
         )
 
         mock_client = MagicMock(spec=FantiaClient)
+        mock_fantia_config = MagicMock(spec=FantiaConfig)
         creator_repo = FantiaFanclubRepositoryImpl(mock_client)
-        post_repo = FantiaPostRepositoryImpl(mock_client)
+        post_repo = FantiaPostRepositoryImpl(mock_client, mock_fantia_config)
 
         # Mock get_posts_by_user and parse_post
         mock_post_ids = ["post1", "post2"]
@@ -264,8 +271,9 @@ class TestRepositoryIntegration:
         )
 
         mock_client = MagicMock(spec=FantiaClient)
+        mock_fantia_config = MagicMock(spec=FantiaConfig)
         creator_repo = FantiaFanclubRepositoryImpl(mock_client)
-        post_repo = FantiaPostRepositoryImpl(mock_client)
+        post_repo = FantiaPostRepositoryImpl(mock_client, mock_fantia_config)
 
         # 同じクライアントインスタンスを使用していることを確認
         assert creator_repo._client is mock_client
@@ -285,7 +293,8 @@ class TestBackwardCompatibility:
         from moro.modules.fantia.infrastructure import FantiaPostRepositoryImpl
 
         mock_client = MagicMock(spec=FantiaClient)
-        repo = FantiaPostRepositoryImpl(mock_client)
+        mock_fantia_config = MagicMock(spec=FantiaConfig)
+        repo = FantiaPostRepositoryImpl(mock_client, mock_fantia_config)
         post_id = "test_post_id"
 
         # 期待されるデータ
@@ -351,7 +360,8 @@ class TestRepositoryErrorHandling:
         from moro.modules.fantia.infrastructure import FantiaPostRepositoryImpl
 
         mock_client = MagicMock(spec=FantiaClient)
-        repo = FantiaPostRepositoryImpl(mock_client)
+        mock_fantia_config = MagicMock(spec=FantiaConfig)
+        repo = FantiaPostRepositoryImpl(mock_client, mock_fantia_config)
 
         # parse_post がネットワークエラーを発生させるモック
         def mock_parse_post_error(client: FantiaClient, post_id: str) -> FantiaPostData:

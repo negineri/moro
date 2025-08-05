@@ -1,6 +1,11 @@
-from typing import Optional
+from logging import getLogger
+from logging.config import dictConfig
 
 import click
+
+from moro.config.settings import ConfigRepository
+
+logger = getLogger(__name__)
 
 
 class AliasedGroup(click.Group):
@@ -10,7 +15,7 @@ class AliasedGroup(click.Group):
     http://click.pocoo.org/5/advanced/
     """
 
-    def get_command(self, ctx: click.Context, cmd_name: str) -> Optional[click.Command]:
+    def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:
         """Get a command by its name or alias."""
         rv = click.Group.get_command(self, ctx, cmd_name)
         if rv is not None:
@@ -33,3 +38,30 @@ class AliasedGroup(click.Group):
                 f"Command '{args[0]}' not found. Use 'moro --help' for a list of commands."
             )
         return cmd.name, cmd, args
+
+
+click_verbose_option = click.option(
+    "-v",
+    "--verbose",
+    is_flag=True,
+    multiple=True,
+    help="Enable verbose output.",
+)
+
+
+def config_logging(verbose: tuple[bool], config: ConfigRepository) -> None:
+    """Configure logging based on verbosity."""
+    if len(verbose) == 1:
+        config.common.logging_config["root"]["level"] = "INFO"
+        dictConfig(config.common.logging_config)
+        logger.info("Setting log level to INFO")
+        return
+
+    if len(verbose) > 1:
+        config.common.logging_config["root"]["level"] = "DEBUG"
+        dictConfig(config.common.logging_config)
+        logger.info("Setting log level to DEBUG")
+        return
+
+
+__all__ = ["AliasedGroup", "click_verbose_option", "config_logging"]

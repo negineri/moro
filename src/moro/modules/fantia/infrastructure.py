@@ -6,6 +6,7 @@ from datetime import datetime as dt
 from logging import getLogger
 from os import makedirs, path
 from pathlib import Path
+from time import sleep
 from typing import Any
 from urllib.parse import urlparse
 
@@ -206,6 +207,7 @@ class FantiaPostRepositoryImpl:
     """Repository implementation for Fantia posts."""
 
     _client: FantiaClient
+    _fantia_config: FantiaConfig
 
     def get(self, post_id: str) -> Any:
         """Get a single post by ID.
@@ -243,6 +245,7 @@ class FantiaPostRepositoryImpl:
             post = self.get(post_id)
             if post is not None:
                 results.append(post)
+            sleep(self._fantia_config.interval_sec)
         return results
 
 

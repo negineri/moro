@@ -6,9 +6,10 @@ including reading environment variables and setting up logging.
 """
 
 import logging
+from collections.abc import Callable
 from os.path import expanduser
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
 import tomli
 from injector import Binder
@@ -40,7 +41,7 @@ class ConfigRepository(BaseModel):
 
     @classmethod
     def create(
-        cls, options: Optional[dict[str, Any]] = None, paths: list[str] = CONFIG_PATHS
+        cls, options: dict[str, Any] | None = None, paths: list[str] = CONFIG_PATHS
     ) -> "ConfigRepository":
         """Factory method to create an instance of AppConfig with default values."""
         if options is None:

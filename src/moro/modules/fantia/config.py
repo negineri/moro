@@ -2,7 +2,6 @@
 
 import logging
 import re
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -56,7 +55,7 @@ class FantiaConfig(BaseModel):
     """Configuration for the Fantia client."""
 
     # 認証設定
-    session_id: Optional[str] = Field(default=None, min_length=1)
+    session_id: str | None = Field(default=None, min_length=1)
 
     # selenium設定
     chrome_data_dir: str = Field(
@@ -76,6 +75,8 @@ class FantiaConfig(BaseModel):
     timeout_write: float = Field(default=10.0, ge=0)
     timeout_pool: float = Field(default=5.0, ge=0)
 
+    interval_sec: float = Field(default=1.0)
+
     # 並列処理設定
     concurrent_downloads: int = Field(default=3, ge=1)
 
@@ -87,7 +88,7 @@ class FantiaConfig(BaseModel):
 
     @field_validator("session_id")
     @classmethod
-    def validate_session_id(cls, v: Optional[str]) -> Optional[str]:
+    def validate_session_id(cls, v: str | None) -> str | None:
         """Validate session_id is not empty string."""
         if v is not None and not v.strip():
             raise ValueError("session_id cannot be empty string")
