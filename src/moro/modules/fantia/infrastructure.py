@@ -273,7 +273,7 @@ class FantiaFanclubRepositoryImpl:
             from moro.modules.fantia.domain import FantiaFanclub
 
             # 投稿一覧を取得
-            posts = get_posts_by_user(self._client, creator_id)
+            posts = get_posts_by_user(self._client, creator_id, 0)
 
             # FantiaCreator エンティティを作成
             return FantiaFanclub(

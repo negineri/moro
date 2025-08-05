@@ -136,3 +136,35 @@ class FantiaFanclubRepository(Protocol):
             FantiaFanclub if found, None otherwise
         """
         ...
+
+
+class FantiaPostStorageRepository(Protocol):
+    """Repository interface for storing Fantia post data to filesystem."""
+
+    def save(self, post_data: FantiaPostData, post_directory: str) -> None:
+        """Save post data to the specified directory.
+
+        Args:
+            post_data: The post data to save
+            post_directory: The directory path to save the post
+
+        Raises:
+            IOError: If saving fails
+        """
+        ...
+
+
+class FantiaDownloadService(Protocol):
+    """Service interface for downloading Fantia post content."""
+
+    def download_all_content(self, post_data: FantiaPostData, post_directory: str) -> bool:
+        """Download all content for a post to the specified directory.
+
+        Args:
+            post_data: The post data containing URLs to download
+            post_directory: The directory to save downloaded content
+
+        Returns:
+            True if all downloads succeeded, False otherwise
+        """
+        ...
