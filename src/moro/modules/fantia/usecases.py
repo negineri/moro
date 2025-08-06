@@ -10,9 +10,9 @@ from pathvalidate import sanitize_filename
 
 from moro.config.settings import ConfigRepository
 from moro.modules.fantia.domain import (
-    FantiaDownloadService,
     FantiaFanclub,
     FantiaFanclubRepository,
+    FantiaFileDownloader,
     FantiaPostData,
     FantiaPostRepository,
     FantiaPostStorageRepository,
@@ -50,7 +50,7 @@ class FantiaSavePostUseCase:
 
     config: ConfigRepository
     post_storage_repo: FantiaPostStorageRepository
-    download_service: FantiaDownloadService
+    file_downloader: FantiaFileDownloader
 
     def execute(self, post_data: FantiaPostData) -> None:
         """Execute the use case to save a post with all its content.
@@ -64,7 +64,7 @@ class FantiaSavePostUseCase:
         post_directory = self._create_post_directory(post_data)
 
         # 原子性を担保: 全てのダウンロードが成功した場合のみ保存
-        download_success = self.download_service.download_all_content(post_data, post_directory)
+        download_success = self.file_downloader.download_all_content(post_data, post_directory)
         if not download_success:
             # 部分的に作成されたファイルをクリーンアップ
             self._cleanup_partial_download(post_directory)

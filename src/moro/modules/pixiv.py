@@ -10,7 +10,7 @@ import os
 import re
 import tempfile
 import zipfile
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 import httpx
@@ -37,7 +37,7 @@ class PixivError(Exception):
 class PixivDownloader:
     """Pixiv artwork downloader using pixivpy API."""
 
-    def __init__(self, refresh_token: Optional[str] = None) -> None:
+    def __init__(self, refresh_token: str | None = None) -> None:
         """
         Initialize Pixiv downloader.
 
@@ -264,7 +264,7 @@ def extract_artwork_id(url: str) -> int:
 def download_pixiv_artwork(
     url: str,
     dest_dir: str,
-    refresh_token: Optional[str] = None,
+    refresh_token: str | None = None,
     auto_prefix: bool = False,
     save_metadata: bool = True,
 ) -> list[str]:

@@ -1,7 +1,6 @@
 """Configuration management commands."""
 
 from pathlib import Path
-from typing import Optional
 
 import click
 import tomli_w
@@ -66,7 +65,7 @@ def init(path: str, force: bool) -> None:
     type=click.Path(exists=True),
     help="Path to configuration file to validate",
 )
-def validate(config_file: Optional[str]) -> None:
+def validate(config_file: str | None) -> None:
     """Validate configuration file or current configuration."""
     if config_file:
         # Validate specific configuration file

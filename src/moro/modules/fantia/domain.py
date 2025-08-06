@@ -1,8 +1,16 @@
 """Domain model for Fantia client."""
 
+from dataclasses import dataclass
+from logging import getLogger
+from pathlib import Path
 from typing import Annotated, Any, Protocol
 
+import httpx
+from injector import inject
+from pathvalidate import sanitize_filename
 from pydantic import BaseModel, Field
+
+logger = getLogger(__name__)
 
 
 class SessionIdProvider(Protocol):
@@ -154,8 +162,13 @@ class FantiaPostStorageRepository(Protocol):
         ...
 
 
-class FantiaDownloadService(Protocol):
-    """Service interface for downloading Fantia post content."""
+# ===== Domain Services =====
+
+
+@inject
+@dataclass
+class FantiaFileDownloader:
+    """Domain service for downloading Fantia post content."""
 
     def download_all_content(self, post_data: FantiaPostData, post_directory: str) -> bool:
         """Download all content for a post to the specified directory.
@@ -167,4 +180,59 @@ class FantiaDownloadService(Protocol):
         Returns:
             True if all downloads succeeded, False otherwise
         """
-        ...
+        try:
+            # サムネイルのダウンロード
+            if post_data.thumbnail:
+                thumbnail_path = Path(post_directory) / f"0000_thumb.{post_data.thumbnail.ext}"
+                if not self._download_file(post_data.thumbnail.url, str(thumbnail_path)):
+                    return False
+
+            # 写真ギャラリーのダウンロード
+            for gallery in post_data.contents_photo_gallery:
+                gallery_dir_name = sanitize_filename(f"{gallery.id}_{gallery.title}")
+                gallery_dir = Path(post_directory) / gallery_dir_name
+                gallery_dir.mkdir(exist_ok=True)
+
+                for i, photo in enumerate(gallery.photos):
+                    photo_path = gallery_dir / f"{i:03d}.{photo.ext}"
+                    if not self._download_file(photo.url, str(photo_path)):
+                        return False
+
+            # ファイルのダウンロード
+            for file_data in post_data.contents_files:
+                file_dir_name = sanitize_filename(f"{file_data.id}_{file_data.title}")
+                file_dir = Path(post_directory) / file_dir_name
+                file_dir.mkdir(exist_ok=True)
+
+                file_path = file_dir / file_data.name
+                if not self._download_file(file_data.url, str(file_path)):
+                    return False
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error during content download: {e}")
+            return False
+
+    def _download_file(self, url: str, file_path: str) -> bool:
+        """Download a single file from URL.
+
+        Args:
+            url: URL to download from
+            file_path: Local file path to save to
+
+        Returns:
+            True if download succeeded, False otherwise
+        """
+        try:
+            response = httpx.get(url, timeout=30)
+            response.raise_for_status()
+
+            with open(file_path, "wb") as f:
+                f.write(response.content)
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to download {url}: {e}")
+            return False

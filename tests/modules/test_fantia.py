@@ -1,7 +1,8 @@
 """fantia moduleのテスト."""
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -44,7 +45,7 @@ def session_id_provider() -> SessionIdProvider:
     """SessionIdProviderのテスト用インスタンスを提供するフィクスチャ."""
 
     class TestProvider(SessionIdProvider):
-        def get_session_id(self) -> Optional[str]:
+        def get_session_id(self) -> str | None:
             return "test_session_id"
 
         def get_cookies(self) -> dict[str, str]:
@@ -71,7 +72,7 @@ class TestSessionIdProvider:
 
         # テスト用の具象クラスを作成
         class TestProvider(SessionIdProvider):
-            def get_session_id(self) -> Optional[str]:
+            def get_session_id(self) -> str | None:
                 return "valid_session_id"
 
             def get_cookies(self) -> dict[str, str]:
@@ -88,7 +89,7 @@ class TestSessionIdProvider:
 
         # テスト用の具象クラスを作成
         class TestProvider(SessionIdProvider):
-            def get_session_id(self) -> Optional[str]:
+            def get_session_id(self) -> str | None:
                 return None
 
             def get_cookies(self) -> dict[str, str]:
@@ -104,7 +105,7 @@ class TestSessionIdProvider:
 
         # テスト用の具象クラスを作成
         class TestProvider(SessionIdProvider):
-            def get_session_id(self) -> Optional[str]:
+            def get_session_id(self) -> str | None:
                 return ""
 
             def get_cookies(self) -> dict[str, str]:
@@ -121,7 +122,7 @@ class TestSessionIdProvider:
 
         # テスト用の具象クラスを作成
         class TestProvider(SessionIdProvider):
-            def get_session_id(self) -> Optional[str]:
+            def get_session_id(self) -> str | None:
                 raise RuntimeError("Test error")
 
             def get_cookies(self) -> dict[str, str]:
@@ -141,7 +142,7 @@ class TestSessionIdProvider:
             def __init__(self) -> None:
                 self.call_count = 0
 
-            def get_session_id(self) -> Optional[str]:
+            def get_session_id(self) -> str | None:
                 self.call_count += 1
                 return f"session_{self.call_count}"
 
@@ -170,7 +171,7 @@ class TestSessionIdProvider:
 
         # テスト用の具象クラスを作成
         class TestProvider(SessionIdProvider):
-            def get_session_id(self) -> Optional[str]:
+            def get_session_id(self) -> str | None:
                 return "valid_session_id"
 
             def get_cookies(self) -> dict[str, str]:
@@ -196,7 +197,7 @@ class TestSessionIdProvider:
 
         # テスト用の具象クラスを作成
         class TestProvider(SessionIdProvider):
-            def get_session_id(self) -> Optional[str]:
+            def get_session_id(self) -> str | None:
                 return None
 
             def get_cookies(self) -> dict[str, str]:
@@ -232,7 +233,7 @@ class TestFantiaClientSessionIdProviderIntegration:
 
         # テスト用のプロバイダーを作成
         class TestProvider(SessionIdProvider):
-            def get_session_id(self) -> Optional[str]:
+            def get_session_id(self) -> str | None:
                 return "test_session_id"
 
             def get_cookies(self) -> dict[str, str]:
@@ -253,7 +254,7 @@ class TestFantiaClientSessionIdProviderIntegration:
 
         # テスト用のプロバイダーを作成
         class TestProvider(SessionIdProvider):
-            def get_session_id(self) -> Optional[str]:
+            def get_session_id(self) -> str | None:
                 return None
 
             def get_cookies(self) -> dict[str, str]:
@@ -277,7 +278,7 @@ class TestFantiaClientSessionIdProviderIntegration:
             def __init__(self) -> None:
                 self.session_id = "initial_session"
 
-            def get_session_id(self) -> Optional[str]:
+            def get_session_id(self) -> str | None:
                 return self.session_id
 
             def get_cookies(self) -> dict[str, str]:
@@ -310,7 +311,7 @@ class TestFantiaClientSessionIdProviderIntegration:
 
         # テスト用の複数クッキープロバイダーを作成
         class TestMultiCookieProvider(SessionIdProvider):
-            def get_session_id(self) -> Optional[str]:
+            def get_session_id(self) -> str | None:
                 return "test_session_12345"
 
             def get_cookies(self) -> dict[str, str]:
@@ -337,7 +338,7 @@ class TestFantiaClientSessionIdProviderIntegration:
 
         # テスト用の一部クッキープロバイダーを作成
         class TestPartialCookieProvider(SessionIdProvider):
-            def get_session_id(self) -> Optional[str]:
+            def get_session_id(self) -> str | None:
                 return "test_session_only"
 
             def get_cookies(self) -> dict[str, str]:
@@ -363,7 +364,7 @@ class TestFantiaClientSessionIdProviderIntegration:
 
         # 初期状態で複数クッキーを返すプロバイダーを作成
         class TestInitialProvider(SessionIdProvider):
-            def get_session_id(self) -> Optional[str]:
+            def get_session_id(self) -> str | None:
                 return "test_session"
 
             def get_cookies(self) -> dict[str, str]:
@@ -385,7 +386,7 @@ class TestFantiaClientSessionIdProviderIntegration:
 
         # 一部のクッキーのみを返すプロバイダーに変更
         class TestReducedProvider(SessionIdProvider):
-            def get_session_id(self) -> Optional[str]:
+            def get_session_id(self) -> str | None:
                 return "new_session"
 
             def get_cookies(self) -> dict[str, str]:
@@ -412,7 +413,7 @@ class TestFantiaClientAutoSessionUpdate:
 
         # テスト用のプロバイダーを作成
         class TestProvider(SessionIdProvider):
-            def get_session_id(self) -> Optional[str]:
+            def get_session_id(self) -> str | None:
                 return "valid_session_id"
 
             def get_cookies(self) -> dict[str, str]:
@@ -440,7 +441,7 @@ class TestFantiaClientAutoSessionUpdate:
             def __init__(self) -> None:
                 self.call_count = 0
 
-            def get_session_id(self) -> Optional[str]:
+            def get_session_id(self) -> str | None:
                 self.call_count += 1
                 if self.call_count == 1:
                     return "invalid_session_id"
@@ -476,7 +477,7 @@ class TestFantiaClientAutoSessionUpdate:
 
         # テスト用のプロバイダーを作成
         class TestProvider(SessionIdProvider):
-            def get_session_id(self) -> Optional[str]:
+            def get_session_id(self) -> str | None:
                 return None
 
             def get_cookies(self) -> dict[str, str]:
@@ -499,7 +500,7 @@ class TestFantiaClientAutoSessionUpdate:
 
         # テスト用のプロバイダーを作成
         class TestProvider(SessionIdProvider):
-            def get_session_id(self) -> Optional[str]:
+            def get_session_id(self) -> str | None:
                 return "valid_session_id"
 
             def get_cookies(self) -> dict[str, str]:
@@ -522,7 +523,7 @@ class TestFantiaClientAutoSessionUpdate:
 
         # テスト用のプロバイダーを作成
         class TestProvider(SessionIdProvider):
-            def get_session_id(self) -> Optional[str]:
+            def get_session_id(self) -> str | None:
                 return "always_invalid_session"
 
             def get_cookies(self) -> dict[str, str]:
@@ -551,7 +552,7 @@ class TestFantiaClientMultiCookieIntegration:
 
         # テスト用の複数クッキープロバイダーを作成
         class TestMultiCookieProvider(SessionIdProvider):
-            def get_session_id(self) -> Optional[str]:
+            def get_session_id(self) -> str | None:
                 return "test_session_12345"
 
             def get_cookies(self) -> dict[str, str]:
@@ -579,7 +580,7 @@ class TestFantiaClientMultiCookieIntegration:
             def __init__(self) -> None:
                 self.call_count = 0
 
-            def get_session_id(self) -> Optional[str]:
+            def get_session_id(self) -> str | None:
                 self.call_count += 1
                 if self.call_count == 1:
                     return "invalid_session_id"
@@ -618,7 +619,7 @@ class TestFantiaClientMultiCookieIntegration:
 
         # テスト用の空クッキープロバイダーを作成
         class TestEmptyCookieProvider(SessionIdProvider):
-            def get_session_id(self) -> Optional[str]:
+            def get_session_id(self) -> str | None:
                 return None
 
             def get_cookies(self) -> dict[str, str]:
@@ -1123,7 +1124,7 @@ class TestFetchPostData:
             _fetch_post_data(mock_client, "12345")
 
         # 例外がJSONパース関連であることを検証
-        assert isinstance(exc_info.value, (ValueError, TypeError))
+        assert isinstance(exc_info.value, ValueError | TypeError)
 
 
 class TestExtractPostMetadata:

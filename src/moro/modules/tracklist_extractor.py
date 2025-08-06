@@ -5,7 +5,7 @@ import random
 from collections.abc import Sequence
 from pathlib import Path
 from time import sleep
-from typing import Any, NamedTuple, Union
+from typing import Any, NamedTuple
 from urllib.parse import urlparse
 
 import httpx
@@ -23,7 +23,7 @@ class Track(NamedTuple):
     track_url: str
 
 
-def _extract_disc_number(cells: Sequence[PageElement]) -> Union[int, None]:
+def _extract_disc_number(cells: Sequence[PageElement]) -> int | None:
     """
     テーブル行からディスク番号を抽出する.
 
@@ -49,7 +49,7 @@ def _extract_disc_number(cells: Sequence[PageElement]) -> Union[int, None]:
     return int(disc_text)
 
 
-def _extract_track_number(cells: Sequence[PageElement]) -> Union[int, None]:
+def _extract_track_number(cells: Sequence[PageElement]) -> int | None:
     """
     テーブル行からトラック番号を抽出する.
 
@@ -75,7 +75,7 @@ def _extract_track_number(cells: Sequence[PageElement]) -> Union[int, None]:
     return int(track_text.replace(".", ""))
 
 
-def _extract_title(cells: Sequence[PageElement]) -> Union[str, None]:
+def _extract_title(cells: Sequence[PageElement]) -> str | None:
     """
     テーブル行から曲名を抽出する.
 
@@ -102,7 +102,7 @@ def _extract_title(cells: Sequence[PageElement]) -> Union[str, None]:
     return title_link.get_text(strip=True)
 
 
-def _extract_duration(cells: Sequence[PageElement]) -> Union[str, None]:
+def _extract_duration(cells: Sequence[PageElement]) -> str | None:
     """
     テーブル行から曲の長さを抽出する.
 
@@ -129,7 +129,7 @@ def _extract_duration(cells: Sequence[PageElement]) -> Union[str, None]:
     return duration_link.get_text(strip=True)
 
 
-def _extract_download_url(cells: Sequence[PageElement], netloc: str) -> Union[str, None]:
+def _extract_download_url(cells: Sequence[PageElement], netloc: str) -> str | None:
     """
     テーブル行からダウンロードURLを抽出する.
 
@@ -166,7 +166,7 @@ def _extract_download_url(cells: Sequence[PageElement], netloc: str) -> Union[st
 
 def _create_track_from_download_url(
     disc: int, track: int, title: str, duration: str, download_url: str
-) -> Union[Track, None]:
+) -> Track | None:
     """
     ダウンロードURLからトラック情報を作成する.
 

@@ -7,7 +7,7 @@ import pytest
 
 from moro.config.settings import ConfigRepository
 from moro.modules.common import CommonConfig
-from moro.modules.fantia.domain import FantiaPostData
+from moro.modules.fantia.domain import FantiaFileDownloader, FantiaPostData
 from moro.modules.fantia.usecases import FantiaSavePostUseCase
 
 
@@ -26,12 +26,12 @@ class TestFantiaSavePostUseCase:
         config_repo.common = CommonConfig(working_dir=str(tmp_path))
 
         post_storage_repo = Mock()
-        download_service = Mock()
+        file_downloader = Mock(spec=FantiaFileDownloader)
 
         usecase = FantiaSavePostUseCase(
             config=config_repo,
             post_storage_repo=post_storage_repo,
-            download_service=download_service,
+            file_downloader=file_downloader,
         )
 
         post_data = FantiaPostData(
@@ -51,13 +51,13 @@ class TestFantiaSavePostUseCase:
         )
 
         # モックの戻り値を設定
-        download_service.download_all_content.return_value = True
+        file_downloader.download_all_content.return_value = True
 
         # Act: UseCase実行
         usecase.execute(post_data)
 
         # Assert: 適切なメソッドが呼ばれることを確認
-        download_service.download_all_content.assert_called_once()
+        file_downloader.download_all_content.assert_called_once()
         post_storage_repo.save.assert_called_once()
 
     def test_execute_download_failure_rollback(self, tmp_path: Path) -> None:
@@ -72,12 +72,12 @@ class TestFantiaSavePostUseCase:
         config_repo.common = CommonConfig(working_dir=str(tmp_path))
 
         post_storage_repo = Mock()
-        download_service = Mock()
+        file_downloader = Mock(spec=FantiaFileDownloader)
 
         usecase = FantiaSavePostUseCase(
             config=config_repo,
             post_storage_repo=post_storage_repo,
-            download_service=download_service,
+            file_downloader=file_downloader,
         )
 
         post_data = FantiaPostData(
@@ -97,12 +97,12 @@ class TestFantiaSavePostUseCase:
         )
 
         # モックの戻り値を設定: ダウンロード失敗
-        download_service.download_all_content.return_value = False
+        file_downloader.download_all_content.return_value = False
 
         # Act & Assert: IOErrorが発生することを確認
         with pytest.raises(IOError, match="Failed to download all content for the post"):
             usecase.execute(post_data)
 
         # Assert: ダウンロードは試行されるが、保存は実行されない
-        download_service.download_all_content.assert_called_once()
+        file_downloader.download_all_content.assert_called_once()
         post_storage_repo.save.assert_not_called()

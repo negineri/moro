@@ -105,7 +105,7 @@ class FantiaClient(httpx.Client):
                     if cookie_name in self.cookies:
                         self.cookies.delete(cookie_name, domain=DOMAIN)
 
-    def get(self, url: Union[httpx.URL, str], **kwargs: Any) -> httpx.Response:
+    def get(self, url: httpx.URL | str, **kwargs: Any) -> httpx.Response:
         """Override get method to automatically retry with updated cookies on 401 errors."""
         # First attempt
         response = super().get(url, **kwargs)
@@ -282,7 +282,7 @@ def _validate_post_type(post_json: dict[str, Any], post_id: str) -> None:
         raise NotImplementedError(f"Blog posts are not supported yet. Post ID: {post_id}")
 
 
-def _parse_post_thumbnail(post_json: dict[str, Any]) -> Optional[FantiaURL]:
+def _parse_post_thumbnail(post_json: dict[str, Any]) -> FantiaURL | None:
     """Parse thumbnail from post JSON."""
     if post_json.get("thumb"):
         thumb_url = post_json["thumb"]["original"]
@@ -476,7 +476,7 @@ def download_photo_gallery(
         )
 
 
-def get_posts_by_user(client: FantiaClient, user_id: str, interval: float = 1) -> list[str]:
+def get_posts_by_user(client: FantiaClient, user_id: str, interval: float = 0) -> list[str]:
     """Get all post ids by a user."""
     if not check_login(client):
         raise ValueError("Invalid session. Please verify your session cookie.")

@@ -2,7 +2,6 @@
 
 from logging import getLogger
 from pathlib import Path
-from typing import Union
 
 import click
 
@@ -19,7 +18,7 @@ logger = getLogger(__name__)
     type=click.Path(path_type=Path),
     help="出力CSVファイルパス(デフォルト: tracklist.csv)",
 )
-def tracklist(url: str, output: Union[Path, None]) -> None:
+def tracklist(url: str, output: Path | None) -> None:
     """
     URLから曲目リストを抽出してCSVファイルに保存する.
 

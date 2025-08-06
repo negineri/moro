@@ -112,7 +112,7 @@ class TestFantiaPostRepositoryImplBehavior:
         from moro.modules.fantia.infrastructure import FantiaPostRepositoryImpl
 
         mock_client = MagicMock(spec=FantiaClient)
-        mock_fantia_config = MagicMock(spec=FantiaConfig)
+        mock_fantia_config = FantiaConfig()
         repo = FantiaPostRepositoryImpl(mock_client, mock_fantia_config)
 
         # Mock parse_post to return data for some IDs and raise exceptions for others
@@ -221,7 +221,7 @@ class TestRepositoryIntegration:
         )
 
         mock_client = MagicMock(spec=FantiaClient)
-        mock_fantia_config = MagicMock(spec=FantiaConfig)
+        mock_fantia_config = FantiaConfig()
         creator_repo = FantiaFanclubRepositoryImpl(mock_client)
         post_repo = FantiaPostRepositoryImpl(mock_client, mock_fantia_config)
 

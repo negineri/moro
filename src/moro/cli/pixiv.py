@@ -6,7 +6,6 @@ Provides a command-line interface for downloading Pixiv artwork.
 
 import logging
 import os
-from typing import Optional
 
 import click
 
@@ -58,7 +57,7 @@ from moro.modules.pixiv import PixivError, download_pixiv_artwork
 def pixiv(
     url: str,
     output_dir: str,
-    refresh_token: Optional[str] = None,
+    refresh_token: str | None = None,
     auto_prefix: bool = False,
     no_metadata: bool = False,
     verbose: bool = False,

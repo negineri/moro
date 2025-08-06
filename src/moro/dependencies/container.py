@@ -1,6 +1,7 @@
 """Dependency injection container configuration."""
 
-from typing import Callable, TypeVar
+from collections.abc import Callable
+from typing import TypeVar
 
 from injector import Binder, Injector
 
