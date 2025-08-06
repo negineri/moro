@@ -7,13 +7,15 @@ from typing import Any, ClassVar
 from unittest.mock import MagicMock
 
 import pytest
+from injector import Injector
 from polyfactory import Use
 from polyfactory.factories.pydantic_factory import ModelFactory
 from polyfactory.pytest_plugin import register_fixture
 
 from moro.config.settings import ConfigRepository
-from moro.modules.fantia import (
-    FantiaConfig,
+from moro.dependencies.container import create_injector
+from moro.modules.fantia.config import FantiaConfig
+from moro.modules.fantia.domain import (
     FantiaFile,
     FantiaPhotoGallery,
     FantiaPostData,
@@ -261,3 +263,13 @@ def post_json_data() -> Callable[..., dict[str, Any]]:
 def config_repository() -> ConfigRepository:
     """ConfigRepositoryのテスト用fixture."""
     return ConfigRepository()
+
+
+@pytest.fixture(scope="function")
+def injector(tmp_path_factory: pytest.TempPathFactory) -> Injector:
+    config = ConfigRepository()
+    config.common.user_data_dir = str(tmp_path_factory.mktemp("user_data"))
+    config.common.user_cache_dir = str(tmp_path_factory.mktemp("user_cache"))
+    config.common.working_dir = str(tmp_path_factory.mktemp("working"))
+
+    return create_injector(config)

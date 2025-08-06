@@ -6,9 +6,8 @@ from os import getenv
 from pathlib import Path
 
 from injector import Binder, Injector, inject
-from tests.common import with_injection
 
-from moro.config.settings import CommonConfig
+from moro.modules.common import CommonConfig
 
 
 @inject
@@ -59,8 +58,8 @@ def test_evn() -> None:
     print(f"MORO_TEST: {test}")  # noqa: T201
 
 
-@with_injection
-def test_with_injection(common_config: CommonConfig, tmp_path: Path) -> None:
+def test_with_injection(injector: Injector, tmp_path: Path) -> None:
+    common_config = injector.get(CommonConfig)
     print(f"common_config: {common_config}")  # noqa: T201
     print(f"tmp_path: {tmp_path}")  # noqa: T201
     assert isinstance(common_config, CommonConfig)
