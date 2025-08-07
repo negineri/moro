@@ -25,12 +25,10 @@ class TestFantiaSavePostUseCase:
         config_repo = Mock(spec=ConfigRepository)
         config_repo.common = CommonConfig(working_dir=str(tmp_path))
 
-        post_storage_repo = Mock()
         file_downloader = Mock(spec=FantiaFileDownloader)
 
         usecase = FantiaSavePostUseCase(
             config=config_repo,
-            post_storage_repo=post_storage_repo,
             file_downloader=file_downloader,
         )
 
@@ -58,7 +56,6 @@ class TestFantiaSavePostUseCase:
 
         # Assert: 適切なメソッドが呼ばれることを確認
         file_downloader.download_all_content.assert_called_once()
-        post_storage_repo.save.assert_called_once()
 
     def test_execute_download_failure_rollback(self, tmp_path: Path) -> None:
         """EC001: ダウンロード失敗時の全体ロールバックのテスト。
@@ -76,7 +73,6 @@ class TestFantiaSavePostUseCase:
 
         usecase = FantiaSavePostUseCase(
             config=config_repo,
-            post_storage_repo=post_storage_repo,
             file_downloader=file_downloader,
         )
 

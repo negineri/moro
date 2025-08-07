@@ -146,22 +146,6 @@ class FantiaFanclubRepository(Protocol):
         ...
 
 
-class FantiaPostStorageRepository(Protocol):
-    """Repository interface for storing Fantia post data to filesystem."""
-
-    def save(self, post_data: FantiaPostData, post_directory: str) -> None:
-        """Save post data to the specified directory.
-
-        Args:
-            post_data: The post data to save
-            post_directory: The directory path to save the post
-
-        Raises:
-            IOError: If saving fails
-        """
-        ...
-
-
 # ===== Domain Services =====
 
 

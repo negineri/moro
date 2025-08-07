@@ -15,7 +15,6 @@ from moro.modules.fantia.domain import (
     FantiaFileDownloader,
     FantiaPostData,
     FantiaPostRepository,
-    FantiaPostStorageRepository,
 )
 
 
@@ -49,7 +48,6 @@ class FantiaSavePostUseCase:
     """Use case for saving a Fantia post with all its content."""
 
     config: ConfigRepository
-    post_storage_repo: FantiaPostStorageRepository
     file_downloader: FantiaFileDownloader
 
     def execute(self, post_data: FantiaPostData) -> None:
@@ -69,9 +67,6 @@ class FantiaSavePostUseCase:
             # 部分的に作成されたファイルをクリーンアップ
             self._cleanup_partial_download(post_directory)
             raise OSError("Failed to download all content for the post")
-
-        # ダウンロード成功後にメタデータを保存
-        self.post_storage_repo.save(post_data, post_directory)
 
     def _create_post_directory(self, post_data: FantiaPostData) -> str:
         """Create directory for a post.
