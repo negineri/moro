@@ -12,10 +12,10 @@ from moro.config.settings import ConfigRepository
 from moro.modules.fantia.domain import (
     FantiaFanclub,
     FantiaFanclubRepository,
-    FantiaFileDownloader,
     FantiaPostData,
     FantiaPostRepository,
 )
+from moro.modules.fantia.infrastructure import FantiaFileDownloader
 
 
 @inject

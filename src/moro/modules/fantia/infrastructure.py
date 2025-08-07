@@ -1,6 +1,7 @@
 """Infrastructure for Fantia client."""
 
 import json
+import os
 import time
 from dataclasses import dataclass
 from datetime import datetime as dt
@@ -14,6 +15,7 @@ from urllib.parse import urlparse
 import httpx
 from bs4 import BeautifulSoup
 from injector import inject
+from pathvalidate import sanitize_filename
 from selenium import webdriver
 
 from moro.modules.common import CommonConfig
@@ -26,6 +28,11 @@ from moro.modules.fantia.config import (
     FantiaConfig,
 )
 from moro.modules.fantia.domain import (
+    FantiaFile,
+    FantiaPhotoGallery,
+    FantiaPostData,
+    FantiaProduct,
+    FantiaText,
     SessionIdProvider,
 )
 
@@ -332,3 +339,159 @@ class FantiaFanclubRepositoryImpl:
             )
         except Exception:
             return None
+
+
+@inject
+@dataclass
+class FantiaFileDownloader:
+    """Domain service for downloading Fantia post content."""
+
+    _client: FantiaClient
+
+    def download_all_content(self, post_data: FantiaPostData, post_directory: str) -> bool:
+        """Download all content for a post to the specified directory.
+
+        Args:
+            post_data: The post data containing URLs to download
+            post_directory: The directory to save downloaded content
+
+        Returns:
+            True if all downloads succeeded, False otherwise
+        """
+        try:
+            # サムネイルのダウンロード
+            self.download_thumbnail(post_directory, post_data)
+            # コメントの保存
+            if post_data.comment:
+                self.save_post_comment(post_directory, post_data.comment)
+
+            # 写真ギャラリーのダウンロード
+            for gallery in post_data.contents_photo_gallery:
+                gallery_dir = self._create_content_directory(
+                    post_directory, gallery.id, gallery.title
+                )
+                self.download_photo_gallery(gallery_dir, gallery)
+            # ファイルのダウンロード
+            for file_data in post_data.contents_files:
+                content_dir = self._create_content_directory(
+                    post_directory, file_data.id, file_data.title
+                )
+                self.download_file(content_dir, file_data)
+
+            # テキストコンテンツの保存
+            for text_content in post_data.contents_text:
+                self.save_text_content(post_directory, text_content)
+
+            # 商品コンテンツの保存
+            for product_content in post_data.contents_products:
+                self.save_product_content(post_directory, product_content)
+
+            logger.info(f"All content downloaded successfully for post {post_data.id}")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error during content download: {e}")
+            return False
+
+    def save_post_comment(self, post_dir: str, comment: str) -> None:
+        """
+        Save post comment to file.
+
+        Args:
+            post_dir: Post directory path.
+            comment: Comment text to save.
+        """
+        comment_path = os.path.join(post_dir, "comment.txt")
+        with open(comment_path, "w", encoding="utf-8") as f:
+            f.write(comment)
+
+    def download_thumbnail(self, post_path: str, post_content: FantiaPostData) -> None:
+        """Download the thumbnail of a post to the specified directory."""
+        if post_content.thumbnail is not None:
+            thumb_url = post_content.thumbnail.url
+            ext = post_content.thumbnail.ext
+            file_path = os.path.join(post_path, "0000_thumb" + ext)
+            self._perform_download(thumb_url, file_path)
+        else:
+            logger.info("No thumbnail found for this post. Skipping...\n")
+
+    def download_file(self, post_path: str, post_content: FantiaFile) -> None:
+        """Download a file to the specified directory."""
+        if post_content.comment is not None:
+            file_path = os.path.join(post_path, "comment.txt")
+            with open(file_path, mode="w") as f:
+                f.write(post_content.comment)
+
+        download_url = post_content.url
+        file_name = post_content.name
+        file_path = os.path.join(post_path, file_name)
+        self._perform_download(download_url, file_path)
+
+    def download_photo_gallery(self, post_path: str, post_content: FantiaPhotoGallery) -> None:
+        """Download a photo gallery to the specified directory."""
+        if post_content.comment is not None:
+            file_path = os.path.join(post_path, "comment.txt")
+            with open(file_path, mode="w") as f:
+                f.write(post_content.comment)
+        for index, photo in enumerate(post_content.photos):
+            self._perform_download(photo.url, os.path.join(post_path, f"{index:03d}{photo.ext}"))
+
+    def save_text_content(self, post_dir: str, text_content: FantiaText) -> None:
+        """Save text content to file."""
+        if not text_content.comment:
+            logger.warning(f"Text content {text_content.id} has no comment.")
+            return
+
+        content_dir = self._create_content_directory(post_dir, text_content.id, text_content.title)
+
+        content_path = os.path.join(content_dir, "content.txt")
+        with open(content_path, "w", encoding="utf-8") as f:
+            f.write(text_content.comment)
+
+    def save_product_content(self, post_dir: str, product_content: FantiaProduct) -> None:
+        """Save product content to files."""
+        if not product_content.comment:
+            logger.warning(f"Product content {product_content.id} has no comment.")
+            return
+
+        content_dir = self._create_content_directory(
+            post_dir, product_content.id, product_content.title
+        )
+
+        # Save comment
+        content_path = os.path.join(content_dir, "content.txt")
+        with open(content_path, "w", encoding="utf-8") as f:
+            f.write(product_content.comment)
+
+        # Save URL
+        url_path = os.path.join(content_dir, "url.txt")
+        with open(url_path, "w", encoding="utf-8") as f:
+            f.write(product_content.url)
+
+    def _create_content_directory(self, post_dir: str, content_id: str, content_title: str) -> str:
+        """Create directory for content within a post."""
+        dir_name = sanitize_filename(f"{content_id}_{content_title}")
+        content_dir = os.path.join(post_dir, dir_name)
+        os.makedirs(content_dir, exist_ok=True)
+        return content_dir
+
+    def _perform_download(self, url: str, path: str) -> bool:
+        """Perform a download for the specified URL while showing progress."""
+        with self._client.stream("GET", url) as response:
+            if response.status_code == 404:
+                logger.info("URL returned 404. Skipping...\n")
+                return False
+            response.raise_for_status()
+
+            file_size = int(response.headers["Content-Length"])
+            downloaded = 0
+            with open(path, mode="wb") as f:
+                for chunk in response.iter_bytes():
+                    downloaded += len(chunk)
+                    f.write(chunk)
+
+        if downloaded != file_size:
+            logger.error(f"Downloaded file size mismatch (expected {file_size}, got {downloaded})")
+
+        return True

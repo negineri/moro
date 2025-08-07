@@ -7,7 +7,8 @@ import pytest
 
 from moro.config.settings import ConfigRepository
 from moro.modules.common import CommonConfig
-from moro.modules.fantia.domain import FantiaFileDownloader, FantiaPostData
+from moro.modules.fantia.domain import FantiaPostData
+from moro.modules.fantia.infrastructure import FantiaFileDownloader
 from moro.modules.fantia.usecases import FantiaSavePostUseCase
 
 
