@@ -4,7 +4,6 @@ import json
 import logging
 import os
 import re
-import time
 from datetime import datetime as dt
 from email.utils import parsedate_to_datetime
 from os import makedirs
@@ -20,7 +19,6 @@ from selenium import webdriver
 from moro.modules.fantia.config import (
     BASE_URL,
     DOMAIN,
-    FANCLUB_POSTS_HTML,
     LOGIN_SIGNIN_URL,
     ME_API,
     POST_API,
@@ -474,48 +472,3 @@ def download_photo_gallery(
             photo.url,
             os.path.join(post_path, f"{index:03d}{photo.ext}"),
         )
-
-
-def get_posts_by_user(client: FantiaClient, user_id: str, interval: float = 0) -> list[str]:
-    """Get all post ids by a user."""
-    if not check_login(client):
-        raise ValueError("Invalid session. Please verify your session cookie.")
-    logger.info(f"Fetching posts for user {user_id}...\n")
-
-    posts: list[str] = []
-    page = 1
-    while True:
-        logger.info(f"Fetching page {page}...")
-        response = client.get(FANCLUB_POSTS_HTML.format(user_id, page))
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-        post_elements = soup.select("div.post")
-        if not post_elements:
-            break
-
-        for post_element in post_elements:
-            post_title_ele = post_element.select_one(".post-title")
-            if post_title_ele is None:
-                logger.warning("Post title not found. Skipping post.")
-                continue
-            post_title = post_title_ele.string
-            if post_title is None:
-                logger.warning("Post title is None. Skipping post.")
-                continue
-
-            post_href_ele = post_element.select_one("a.link-block")
-            if post_href_ele is None:
-                logger.warning("Post link not found. Skipping post.")
-                continue
-            post_href = post_href_ele.get("href")
-            if post_href is None:
-                logger.warning("Post link is None. Skipping post.")
-                continue
-
-            post_id = Path(str(post_href)).name
-            posts.append(post_id)
-
-        page += 1
-        time.sleep(interval)
-
-    return posts

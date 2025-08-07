@@ -10,9 +10,9 @@ from injector import inject
 from moro.config.settings import ConfigRepository
 from moro.modules.fantia import (
     FantiaClient,
-    get_posts_by_user,
     parse_post,
 )
+from moro.modules.fantia.infrastructure import get_posts_by_user
 from moro.services.fantia_auth import FantiaAuthService
 from moro.services.fantia_download import FantiaDownloadService
 from moro.services.fantia_file import FantiaFileService

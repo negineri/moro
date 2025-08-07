@@ -1,6 +1,7 @@
 """Infrastructure for Fantia client."""
 
 import json
+import time
 from dataclasses import dataclass
 from datetime import datetime as dt
 from logging import getLogger
@@ -11,12 +12,19 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx
+from bs4 import BeautifulSoup
 from injector import inject
 from selenium import webdriver
 
 from moro.modules.common import CommonConfig
 from moro.modules.fantia import FantiaClient
-from moro.modules.fantia.config import DOMAIN, LOGIN_SIGNIN_URL, ME_API, FantiaConfig
+from moro.modules.fantia.config import (
+    DOMAIN,
+    FANCLUB_POSTS_HTML,
+    LOGIN_SIGNIN_URL,
+    ME_API,
+    FantiaConfig,
+)
 from moro.modules.fantia.domain import (
     SessionIdProvider,
 )
@@ -198,6 +206,49 @@ class SeleniumSessionIdProvider(SessionIdProvider):
         return options
 
 
+def get_posts_by_user(client: FantiaClient, user_id: str, interval: float = 0) -> list[str]:
+    """Get all post ids by a user."""
+    logger.info(f"Fetching posts for user {user_id}...\n")
+
+    posts: list[str] = []
+    page = 1
+    while True:
+        logger.info(f"Fetching page {page}...")
+        response = client.get(FANCLUB_POSTS_HTML.format(user_id, page))
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        post_elements = soup.select("div.post")
+        if not post_elements:
+            break
+
+        for post_element in post_elements:
+            post_title_ele = post_element.select_one(".post-title")
+            if post_title_ele is None:
+                logger.warning("Post title not found. Skipping post.")
+                continue
+            post_title = post_title_ele.string
+            if post_title is None:
+                logger.warning("Post title is None. Skipping post.")
+                continue
+
+            post_href_ele = post_element.select_one("a.link-block")
+            if post_href_ele is None:
+                logger.warning("Post link not found. Skipping post.")
+                continue
+            post_href = post_href_ele.get("href")
+            if post_href is None:
+                logger.warning("Post link is None. Skipping post.")
+                continue
+
+            post_id = Path(str(post_href)).name
+            posts.append(post_id)
+
+        page += 1
+        time.sleep(interval)
+
+    return posts
+
+
 # ===== Repository Implementations =====
 
 
@@ -269,7 +320,6 @@ class FantiaFanclubRepositoryImpl:
             return None
 
         try:
-            from moro.modules.fantia import get_posts_by_user
             from moro.modules.fantia.domain import FantiaFanclub
 
             # 投稿一覧を取得

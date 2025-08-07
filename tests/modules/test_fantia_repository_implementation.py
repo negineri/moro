@@ -153,7 +153,7 @@ class TestFantiaFanclubRepository:
         # 空のIDでは None が返される
         assert repo.get("") is None
 
-    @patch("moro.modules.fantia.get_posts_by_user")
+    @patch("moro.modules.fantia.infrastructure.get_posts_by_user")
     def test_get_returns_creator_for_valid_id(
         self, mock_get_posts: MagicMock, mock_fantia_client: MagicMock
     ) -> None:
@@ -168,7 +168,7 @@ class TestFantiaFanclubRepository:
         assert result.id == "valid_creator_id"
         assert result.posts == ["post1", "post2", "post3"]
 
-    @patch("moro.modules.fantia.get_posts_by_user")
+    @patch("moro.modules.fantia.infrastructure.get_posts_by_user")
     def test_get_returns_none_for_invalid_id(
         self, mock_get_posts: MagicMock, mock_fantia_client: MagicMock
     ) -> None:
@@ -179,7 +179,7 @@ class TestFantiaFanclubRepository:
         result = repo.get("nonexistent_creator_id")
         assert result is None
 
-    @patch("moro.modules.fantia.get_posts_by_user")
+    @patch("moro.modules.fantia.infrastructure.get_posts_by_user")
     def test_authentication_error_handling(
         self, mock_get_posts: MagicMock, mock_fantia_client: MagicMock
     ) -> None:
@@ -194,7 +194,7 @@ class TestFantiaFanclubRepository:
         result = repo.get("creator_123")
         assert result is None
 
-    @patch("moro.modules.fantia.get_posts_by_user")
+    @patch("moro.modules.fantia.infrastructure.get_posts_by_user")
     def test_backward_compatibility(
         self, mock_get_posts: MagicMock, mock_fantia_client: MagicMock
     ) -> None:
@@ -212,7 +212,7 @@ class TestFantiaFanclubRepository:
 class TestRepositoryIntegration:
     """Repository 間の統合テスト."""
 
-    @patch("moro.modules.fantia.get_posts_by_user")
+    @patch("moro.modules.fantia.infrastructure.get_posts_by_user")
     @patch("moro.modules.fantia.parse_post")
     def test_repositories_work_together(
         self,
