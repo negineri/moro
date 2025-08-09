@@ -3,6 +3,7 @@
 import json
 import os
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime as dt
 from logging import getLogger
@@ -28,9 +29,11 @@ from moro.modules.fantia.config import (
     FantiaConfig,
 )
 from moro.modules.fantia.domain import (
+    FantiaFanclubRepository,
     FantiaFile,
     FantiaPhotoGallery,
     FantiaPostData,
+    FantiaPostRepository,
     FantiaProduct,
     FantiaText,
     SessionIdProvider,
@@ -262,7 +265,7 @@ def get_posts_by_user(client: FantiaClient, user_id: str, interval: float = 0) -
 
 @inject
 @dataclass
-class FantiaPostRepositoryImpl:
+class FantiaPostRepositoryImpl(FantiaPostRepository):
     """Repository implementation for Fantia posts."""
 
     _client: FantiaClient
@@ -287,55 +290,53 @@ class FantiaPostRepositoryImpl:
         except Exception:
             return None
 
-    def get_many(self, post_ids: list[str]) -> list[Any]:
+    def get_many(self, post_ids: list[str]) -> Iterator[FantiaPostData]:
         """Get multiple posts by IDs.
 
         Args:
             post_ids: List of post IDs to retrieve
 
         Returns:
-            List of FantiaPostData for found posts (excludes not found)
+            Iterator of FantiaPostData for found posts (excludes not found)
         """
         if not post_ids:
-            return []
+            return
 
-        results: list[Any] = []
         for post_id in post_ids:
             post = self.get(post_id)
             if post is not None:
-                results.append(post)
+                yield post
             sleep(self._fantia_config.interval_sec)
-        return results
 
 
 @inject
 @dataclass
-class FantiaFanclubRepositoryImpl:
-    """Repository implementation for Fantia creators."""
+class FantiaFanclubRepositoryImpl(FantiaFanclubRepository):
+    """Repository implementation for Fantia fanclubs."""
 
     _client: FantiaClient
 
-    def get(self, creator_id: str) -> Any:
-        """Get a creator by ID.
+    def get(self, fanclub_id: str) -> Any:
+        """Get a fanclub by ID.
 
         Args:
-            creator_id: The ID of the creator to retrieve
+            fanclub_id: The ID of the fanclub to retrieve
 
         Returns:
-            FantiaCreator if found, None otherwise
+            FantiaFanclub if found, None otherwise
         """
-        if not creator_id or not creator_id.strip():
+        if not fanclub_id or not fanclub_id.strip():
             return None
 
         try:
             from moro.modules.fantia.domain import FantiaFanclub
 
             # 投稿一覧を取得
-            posts = get_posts_by_user(self._client, creator_id)
+            posts = get_posts_by_user(self._client, fanclub_id)
 
-            # FantiaCreator エンティティを作成
+            # FantiaFanclub エンティティを作成
             return FantiaFanclub(
-                id=creator_id,
+                id=fanclub_id,
                 posts=posts,
             )
         except Exception:

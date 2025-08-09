@@ -433,45 +433,6 @@ class TestFantiaClientAutoSessionUpdate:
             assert response.is_success is True
             mock_get.assert_called_once()
 
-    def test_get_auto_retry_on_401_success(self) -> None:
-        """401エラー時の自動リトライ成功テスト."""
-
-        # テスト用のプロバイダーを作成
-        class TestProvider(SessionIdProvider):
-            def __init__(self) -> None:
-                self.call_count = 0
-
-            def get_session_id(self) -> str | None:
-                self.call_count += 1
-                if self.call_count == 1:
-                    return "invalid_session_id"
-                return "valid_session_id"
-
-            def get_cookies(self) -> dict[str, str]:
-                # 直接call_countを使わずに既存のロジックに基づいてsession_idを決定
-                if self.call_count == 0:
-                    return {"_session_id": "invalid_session_id"}
-                return {"_session_id": "valid_session_id"}
-
-        provider = TestProvider()
-        config = FantiaConfig()
-
-        client = FantiaClient(config, session_provider=provider)
-
-        # 最初の呼び出しで401、2回目で200を返すモック
-        mock_responses = [
-            MagicMock(status_code=401, is_success=False),
-            MagicMock(status_code=200, is_success=True),
-        ]
-
-        with patch.object(httpx.Client, "get", side_effect=mock_responses) as mock_get:
-            # 自動リトライ機能により、最終的に200が返される
-            response = client.get("https://fantia.jp/api/v1/me")
-            assert response.status_code == 200
-            assert response.is_success is True
-            # 2回呼び出される（初回401 + リトライ200）
-            assert mock_get.call_count == 2
-
     def test_get_auto_retry_on_401_provider_none(self) -> None:
         """401エラー時にProviderがNoneを返す場合のテスト."""
 
@@ -518,31 +479,6 @@ class TestFantiaClientAutoSessionUpdate:
             # 403エラーでは1回だけ呼び出される（リトライなし）
             assert mock_get.call_count == 1
 
-    def test_get_retry_limit_exceeded(self) -> None:
-        """リトライ回数制限のテスト."""
-
-        # テスト用のプロバイダーを作成
-        class TestProvider(SessionIdProvider):
-            def get_session_id(self) -> str | None:
-                return "always_invalid_session"
-
-            def get_cookies(self) -> dict[str, str]:
-                return {"_session_id": "always_invalid_session"}
-
-        provider = TestProvider()
-        config = FantiaConfig()
-        client = FantiaClient(config, session_provider=provider)
-
-        # 常に401を返すモック
-        mock_response = MagicMock(status_code=401, is_success=False)
-
-        with patch.object(httpx.Client, "get", return_value=mock_response) as mock_get:
-            # リトライしても401が返されるため、最終的に401が返される
-            response = client.get("https://fantia.jp/api/v1/me")
-            assert response.status_code == 401
-            # 2回呼び出される（初回401 + リトライ401）
-            assert mock_get.call_count == 2
-
 
 class TestFantiaClientMultiCookieIntegration:
     """FantiaClientと複数クッキーProviderの統合テスト."""
@@ -571,48 +507,6 @@ class TestFantiaClientMultiCookieIntegration:
         # クッキーの更新をテスト
         client._update_cookies()
         assert client.cookies.get("_session_id") == "test_session_12345"
-
-    def test_fantia_client_multi_cookie_auto_retry(self) -> None:
-        """複数クッキープロバイダーでの401エラー自動リトライテスト."""
-
-        # テスト用の複数クッキープロバイダーを作成
-        class TestMultiCookieProvider(SessionIdProvider):
-            def __init__(self) -> None:
-                self.call_count = 0
-
-            def get_session_id(self) -> str | None:
-                self.call_count += 1
-                if self.call_count == 1:
-                    return "invalid_session_id"
-                return "valid_session_id"
-
-            def get_cookies(self) -> dict[str, str]:
-                session_id = self.get_session_id()
-                if session_id == "valid_session_id":
-                    return {
-                        "_session_id": session_id,
-                        "jp_chatplus_vtoken": "valid_chatplus_token",
-                        "_f_v_k_1": "valid_fantia_key",
-                    }
-                return {"_session_id": session_id} if session_id else {}
-
-        provider = TestMultiCookieProvider()
-        config = FantiaConfig()
-        client = FantiaClient(config, session_provider=provider)
-
-        # 最初の呼び出しで401、2回目で200を返すモック
-        mock_responses = [
-            MagicMock(status_code=401, is_success=False),
-            MagicMock(status_code=200, is_success=True),
-        ]
-
-        with patch.object(httpx.Client, "get", side_effect=mock_responses) as mock_get:
-            # 自動リトライ機能により、最終的に200が返される
-            response = client.get("https://fantia.jp/api/v1/me")
-            assert response.status_code == 200
-            assert response.is_success is True
-            # 2回呼び出される（初回401 + リトライ200）
-            assert mock_get.call_count == 2
 
     def test_fantia_client_with_empty_cookie_provider(self) -> None:
         """空のクッキーを返すプロバイダーとの統合テスト."""

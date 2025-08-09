@@ -1,5 +1,6 @@
 """Domain model for Fantia client."""
 
+from collections.abc import Iterator
 from logging import getLogger
 from typing import Annotated, Any, Protocol
 
@@ -114,7 +115,7 @@ class FantiaPostRepository(Protocol):
         """
         ...
 
-    def get_many(self, post_ids: list[str]) -> list[FantiaPostData]:
+    def get_many(self, post_ids: list[str]) -> Iterator[FantiaPostData]:
         """Get multiple posts by IDs.
 
         Args:

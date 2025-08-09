@@ -1,5 +1,6 @@
 """Fantia Repository 具体実装のテスト."""
 
+from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -68,8 +69,8 @@ class TestFantiaPostRepository:
         # 空のIDでは None が返される
         assert repo.get("") is None
 
-        # 空のリストでは空のリストが返される
-        assert repo.get_many([]) == []
+        # 空のリストでは空のイテレーターが返される
+        assert list(repo.get_many([])) == []
 
     def test_exception_handling(
         self, mock_fantia_client: MagicMock, mock_fantia_config: FantiaConfig
@@ -99,7 +100,7 @@ class TestFantiaPostRepository:
             raise Exception("Post not found")
 
         mock_parse_post.side_effect = side_effect
-        result = repo.get_many(["valid_post", "invalid_post"])
+        result = list(repo.get_many(["valid_post", "invalid_post"]))
 
         assert len(result) == 1
         assert result[0].id == sample_post_data.id
@@ -134,6 +135,27 @@ class TestFantiaPostRepository:
 
         assert result == sample_post_data
         assert result.id == sample_post_data.id
+
+    @patch("moro.modules.fantia.parse_post")
+    def test_get_many_returns_iterator(
+        self,
+        mock_parse_post: MagicMock,
+        mock_fantia_client: MagicMock,
+        mock_fantia_config: FantiaConfig,
+        sample_post_data: FantiaPostData,
+    ) -> None:
+        """get_many() がイテレーターを返すことをテスト."""
+        repo = FantiaPostRepositoryImpl(mock_fantia_client, mock_fantia_config)
+        mock_parse_post.return_value = sample_post_data
+
+        result = repo.get_many(["post1", "post2"])
+
+        # イテレーターであることを確認
+        assert isinstance(result, Iterator)
+        # 実際に投稿データが取得できることを確認
+        posts = list(result)
+        assert len(posts) == 2
+        assert all(post.id == sample_post_data.id for post in posts)
 
 
 class TestFantiaFanclubRepository:
@@ -253,7 +275,7 @@ class TestRepositoryIntegration:
         assert creator is not None
         assert creator.posts == mock_post_ids
 
-        posts = post_repo.get_many(creator.posts)
+        posts = list(post_repo.get_many(creator.posts))
         assert len(posts) == 2
         assert all(isinstance(post, FantiaPostData) for post in posts)
         assert posts[0].id == "post1"

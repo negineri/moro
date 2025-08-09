@@ -2,6 +2,7 @@
 
 import os
 import shutil
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime as dt
 
@@ -37,7 +38,7 @@ class FantiaGetPostsUseCase:
 
     post_repo: FantiaPostRepository
 
-    def execute(self, post_ids: list[str]) -> list[FantiaPostData]:
+    def execute(self, post_ids: list[str]) -> Iterator[FantiaPostData]:
         """Execute the use case to get posts by fanclub ID."""
         return self.post_repo.get_many(post_ids)
 
