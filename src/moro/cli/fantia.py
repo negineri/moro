@@ -11,7 +11,11 @@ import click
 from moro.cli._utils import AliasedGroup, click_verbose_option, config_logging
 from moro.config.settings import ConfigRepository
 from moro.dependencies.container import create_injector
-from moro.modules.fantia.usecases import FantiaGetFanclubUseCase, FantiaGetPostsUseCase
+from moro.modules.fantia.usecases import (
+    FantiaGetFanclubUseCase,
+    FantiaGetPostsUseCase,
+    FantiaSavePostUseCase,
+)
 
 logger = getLogger(__name__)
 
@@ -52,7 +56,7 @@ def posts(post_id: tuple[str], fanclub_id: str, verbose: tuple[bool]) -> None:
 
     posts = injector.get(FantiaGetPostsUseCase).execute(post_ids)
     for post in posts:
-        click.echo(f"Downloaded post: {post.id} - {post.title}")
+        injector.get(FantiaSavePostUseCase).execute(post)
 
 
 @fantia.command()

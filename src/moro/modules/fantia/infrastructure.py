@@ -366,6 +366,8 @@ class FantiaFileDownloader:
             # コメントの保存
             if post_data.comment:
                 self.save_post_comment(post_directory, post_data.comment)
+            # コンテンツメタデータの保存
+            self.save_post_contents_meta(post_directory, post_data.contents)
 
             # 写真ギャラリーのダウンロード
             for gallery in post_data.contents_photo_gallery:
@@ -395,6 +397,12 @@ class FantiaFileDownloader:
         except Exception as e:
             logger.error(f"Error during content download: {e}")
             return False
+
+    def save_post_contents_meta(self, post_dir: str, contents: list[Any]) -> None:
+        """Save post contents metadata to file."""
+        meta_path = os.path.join(post_dir, "contents.json")
+        with open(meta_path, "w", encoding="utf-8") as f:
+            json.dump(contents, f, ensure_ascii=False, indent=4)
 
     def save_post_comment(self, post_dir: str, comment: str) -> None:
         """

@@ -19,7 +19,9 @@ from moro.modules.fantia import (
     check_login,
 )
 from moro.modules.fantia.config import FantiaConfig
-from moro.modules.fantia.domain import SessionIdProvider
+from moro.modules.fantia.domain import (
+    SessionIdProvider,
+)
 from moro.modules.fantia.infrastructure import SeleniumSessionIdProvider
 
 
