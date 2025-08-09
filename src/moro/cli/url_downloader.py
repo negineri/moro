@@ -6,7 +6,6 @@ Supports saving to directory or ZIP archive.
 """
 
 import logging
-from typing import Optional
 
 import click
 
@@ -60,7 +59,7 @@ def download(
     input_file: str,
     output_dir: str,
     timeout: float = 10.0,
-    prefix: Optional[str] = None,
+    prefix: str | None = None,
     auto_prefix: bool = False,
     verbose: bool = False,
 ) -> None:

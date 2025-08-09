@@ -206,7 +206,7 @@ class TestPixivDownloaderFileHandling:
         # Assert
         assert filename == "123456_Test Artwork_Test Author.jpg"
 
-    def test_create_filename_multiple_files_with_prefix(
+    def test_create_filename_with_auto_prefix(
         self, downloader: PixivDownloader, sample_artwork_detail: dict[str, Any], test_url: str
     ) -> None:
         """自動プレフィックスを持つ複数ファイルのファイル名生成をテスト。"""

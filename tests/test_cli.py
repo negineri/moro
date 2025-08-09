@@ -7,7 +7,6 @@ from click.testing import CliRunner
 
 from moro.cli._utils import AliasedGroup
 from moro.cli.cli import cli
-from moro.config.settings import ConfigRepo
 
 
 def test_example_command() -> None:
@@ -15,7 +14,8 @@ def test_example_command() -> None:
     runner = CliRunner()
     result = runner.invoke(cli, ["example", "echo"])
     assert result.exit_code == 0
-    assert "This is an example command." in result.output
+    assert "Current configuration: common=CommonConfig" in result.output
+    assert "fantia=FantiaConfig" in result.output
 
 
 def test_main_entry_point() -> None:
@@ -41,16 +41,6 @@ def test_aliased_group() -> None:
     assert command is None
 
 
-def test_config_repo_read_file_not_found() -> None:
-    """Test ConfigRepo.read raises FileNotFoundError when logging config is missing."""
-    repo = ConfigRepo()
-    with patch("pathlib.Path.exists", return_value=False):
-        try:
-            repo.read()
-        except FileNotFoundError as e:
-            assert "Logging configuration file not found" in str(e)
-
-
 def test_aliased_group_multiple_matches() -> None:
     """Test AliasedGroup handling of multiple matches."""
     group = AliasedGroup()
@@ -66,7 +56,7 @@ def test_aliased_group_multiple_matches() -> None:
     ctx = click.Context(group)
 
     # Test multiple matches - should fail
-    ctx.fail = lambda msg: (_ for _ in ()).throw(click.BadParameter(msg))
+    ctx.fail = lambda msg: (_ for _ in ()).throw(click.BadParameter(msg))  # type: ignore
     try:
         group.get_command(ctx, "he")
         raise AssertionError("Should have raised an exception")
@@ -80,7 +70,7 @@ def test_resolve_command_with_none_command() -> None:
     ctx = click.Context(group)
 
     # Mock the parent resolve_command to return None
-    with patch.object(click.Group, 'resolve_command', return_value=("", None, ["nonexistent"])):
+    with patch.object(click.Group, "resolve_command", return_value=("", None, ["nonexistent"])):
         try:
             group.resolve_command(ctx, ["nonexistent"])
             raise AssertionError("Should have raised an exception")

@@ -5,65 +5,131 @@ This module provides classes and methods to handle application configuration,
 including reading environment variables and setting up logging.
 """
 
-from dataclasses import dataclass
-from os import getenv
-from os.path import dirname, join
+import logging
+from collections.abc import Callable
+from os.path import expanduser
 from pathlib import Path
 from typing import Any
 
-from dotenv import load_dotenv
-from yaml import safe_load
+import tomli
+from injector import Binder
+from pydantic import BaseModel, Field
+
+from moro.modules.common import CommonConfig
+from moro.modules.fantia.config import FantiaConfig
+
+logger = logging.getLogger(__name__)
 
 ENV_PREFIX = "MORO_"
+CONFIG_PATHS = [
+    str(Path(__file__).parent / "settings.toml"),
+    "/etc/moro/settings.toml",
+    expanduser("~/.config/moro/settings.toml"),
+]
 
-# Domain Object
 
-
-@dataclass
-class Config:
+class ConfigRepository(BaseModel):
     """
-    Configuration class for the application.
+    Configuration repository for the application.
 
-    Attributes:
-        jobs (int): Number of jobs for processing.
-        logging_config_path (str): Path to the logging configuration file.
+    This class holds the application configuration and provides methods to load
+    environment variables into the configuration.
     """
 
-    jobs: int  # Number of jobs for processing
-    logging_config: dict[str, Any]  # Logging configuration
+    common: CommonConfig = Field(default_factory=CommonConfig)  # Common configuration instance
+    fantia: FantiaConfig = Field(default_factory=FantiaConfig)  # Fantia-specific configuration
 
+    @classmethod
+    def create(
+        cls, options: dict[str, Any] | None = None, paths: list[str] = CONFIG_PATHS
+    ) -> "ConfigRepository":
+        """Factory method to create an instance of AppConfig with default values."""
+        if options is None:
+            options = {}
 
-# Repository Implementation
+        etc_options = load_config_files(paths=paths)
+        env_options = load_env_vars()
+        etc_options.update(env_options)
+        etc_options.update(options)
 
+        return cls(**etc_options)
 
-@dataclass
-class ConfigRepo:
-    """Repository for configuration."""
-
-    def read(self) -> Config:
+    def create_injector_builder(self) -> Callable[[Binder], None]:
         """
-        Read configuration.
+        Create an injector builder for dependency injection.
 
         Returns:
-            Config: Configuration object
-
-        Raises:
-            FileNotFoundError: If the configuration file is not found.
+            Callable[[Binder], None]: Function to configure the injector.
         """
-        load_dotenv()
 
-        jobs = int(getenv(f"{ENV_PREFIX}JOBS", "16"))
-        logging_config_path = Path(
-            getenv(f"{ENV_PREFIX}LOGGING_CONFIG_PATH", join(dirname(__file__), "logging.yml"))
-        )
+        def configure(binder: Binder) -> None:
+            binder.bind(ConfigRepository, to=self)
+            binder.bind(CommonConfig, to=self.common)
+            binder.bind(FantiaConfig, to=self.fantia)
 
-        if logging_config_path.exists():
-            with open(logging_config_path) as f:
-                logging_config = safe_load(f)
+        return configure
+
+
+def load_config_files(paths: list[str]) -> dict[str, Any]:
+    """
+    Load configuration from YAML files in the user's config directories.
+
+    Returns:
+        dict[str, Any]: Merged configuration data from all found files.
+    """
+    config_paths = [Path(path) for path in paths]
+
+    config_data: dict[str, Any] = {}
+    for path in config_paths:
+        if path.exists():
+            try:
+                with open(path, "rb") as f:
+                    data: dict[str, Any] = tomli.load(f) or {}
+                    config_data.update(data)
+            except Exception as e:
+                logger.warning(f"Failed to load configuration file {path}: {e}")
+
+    return config_data
+
+
+def load_env_vars() -> dict[str, Any]:
+    """
+    Load environment variables with MORO_ prefix.
+
+    Supports both flat and nested configuration with arbitrary depth:
+    - MORO_COMMON__JOBS=16 -> common.jobs
+    - MORO_FANTIA__DOWNLOAD_THUMB=true -> fantia.download_thumb
+    - MORO_TEMP__HOGEHOGE__EXAMPLE=false -> temp.hogehoge.example
+
+    Returns:
+        dict[str, Any]: Configuration data from environment variables.
+    """
+    import os
+
+    config_data: dict[str, Any] = {}
+
+    for key, value in os.environ.items():
+        if not key.startswith(ENV_PREFIX):
+            continue
+
+        # Remove the prefix and convert to lowercase
+        setting_key = key[len(ENV_PREFIX) :].lower()
+
+        # Handle nested fields (e.g., FANTIA__DOWNLOAD_THUMB -> fantia.download_thumb)
+        if "__" in setting_key:
+            parts = setting_key.split("__")
+
+            # Navigate/create nested structure
+            current_dict = config_data
+            for part in parts[:-1]:  # All parts except the last one
+                if part not in current_dict:
+                    current_dict[part] = {}
+                current_dict = current_dict[part]
+
+            # Set the final value
+            current_dict[parts[-1]] = value
         else:
-            raise FileNotFoundError(f"Logging configuration file not found: {logging_config_path}")
+            # Handle top-level fields
+            config_data[setting_key] = value
 
-        return Config(
-            jobs=jobs,
-            logging_config=logging_config,
-        )
+    return config_data

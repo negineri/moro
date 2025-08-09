@@ -15,7 +15,6 @@ import shutil
 import tempfile
 import zipfile
 from time import sleep
-from typing import Optional
 from urllib.parse import unquote
 
 import httpx
@@ -182,7 +181,7 @@ def download_from_url_list(
     url_list_path: str,
     dest_dir: str,
     timeout: float = 10.0,
-    prefix: Optional[str] = None,
+    prefix: str | None = None,
     auto_prefix: bool = False,
 ) -> list[str]:
     """
