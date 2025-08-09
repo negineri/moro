@@ -215,7 +215,7 @@ class SeleniumSessionIdProvider(SessionIdProvider):
 
 def get_posts_by_user(client: FantiaClient, user_id: str, interval: float = 0) -> list[str]:
     """Get all post ids by a user."""
-    logger.info(f"Fetching posts for user {user_id}...\n")
+    logger.info(f"Fetching posts for user {user_id}...")
 
     posts: list[str] = []
     page = 1
@@ -232,6 +232,7 @@ def get_posts_by_user(client: FantiaClient, user_id: str, interval: float = 0) -
             post_title_ele = post_element.select_one(".post-title")
             if post_title_ele is None:
                 logger.warning("Post title not found. Skipping post.")
+                logger.debug(f"Post element: {post_element}")
                 continue
             post_title = post_title_ele.string
             if post_title is None:

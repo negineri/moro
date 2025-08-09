@@ -104,32 +104,9 @@ class FantiaClient(httpx.Client):
                         self.cookies.delete(cookie_name, domain=DOMAIN)
 
     def get(self, url: httpx.URL | str, **kwargs: Any) -> httpx.Response:
-        """Override get method to automatically retry with updated cookies on 401 errors."""
-        # First attempt
-        response = super().get(url, **kwargs)
-
-        # Check if we got a 401 Unauthorized and have a session provider
-        if response.status_code == 401:
-            logger.info("Received 401 Unauthorized, attempting to refresh cookies")
-
-            # Try to get new cookies from the provider
-            new_cookies = self._session_provider.get_cookies()
-            if new_cookies.get("_session_id"):
-                # Update all cookies
-                self._update_cookies()
-                logger.info("Updated cookies, retrying request")
-
-                # Retry the request once with the new cookies
-                response = super().get(url, **kwargs)
-
-                if response.status_code == 401:
-                    logger.warning("Request still failed after cookie refresh")
-                else:
-                    logger.info("Request succeeded after cookie refresh")
-            else:
-                logger.warning("Unable to get new session_id from provider")
-
-        return response
+        """Perform a GET request with updated cookies."""
+        self._update_cookies()
+        return super().get(url, **kwargs)
 
 
 def get_csrf_token(client: FantiaClient, post_id: str) -> str:
