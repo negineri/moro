@@ -1,11 +1,10 @@
 """Entry point for the CLI."""
 
 from logging import getLogger
-from logging.config import dictConfig
 
 import click
 
-from moro.cli._utils import AliasedGroup
+from moro.cli._utils import AliasedGroup, config_logging
 from moro.cli.config import config
 from moro.cli.example import example
 from moro.cli.fantia import fantia
@@ -24,7 +23,7 @@ def cli() -> None:
     repo = ConfigRepository.create()
 
     # Configure logging
-    dictConfig(repo.common.logging_config)
+    config_logging(repo)
 
 
 cli.add_command(config)

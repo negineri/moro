@@ -39,7 +39,7 @@ def fantia() -> None:
 def posts(post_id: tuple[str], fanclub_id: str, verbose: tuple[bool]) -> None:
     """Download posts by their IDs."""
     config = ConfigRepository.create()
-    config_logging(verbose, config)
+    config_logging(config, verbose)
     injector = create_injector(config)
 
     post_ids = list(post_id)
@@ -67,7 +67,7 @@ def posts(post_id: tuple[str], fanclub_id: str, verbose: tuple[bool]) -> None:
 def fanclub(fanclub_id: str, verbose: tuple[bool]) -> None:
     """Download posts by fanclub ID."""
     config = ConfigRepository.create()
-    config_logging(verbose, config)
+    config_logging(config, verbose)
 
     injector = create_injector(config)
 

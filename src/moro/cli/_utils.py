@@ -1,5 +1,6 @@
 from logging import getLogger
 from logging.config import dictConfig
+from pathlib import Path
 
 import click
 
@@ -49,19 +50,32 @@ click_verbose_option = click.option(
 )
 
 
-def config_logging(verbose: tuple[bool], config: ConfigRepository) -> None:
+def config_logging(config: ConfigRepository, verbose: tuple[bool] | None = None) -> None:
     """Configure logging based on verbosity."""
-    if len(verbose) == 1:
-        config.common.logging_config["root"]["level"] = "INFO"
+    # Create logs directory if file handler is configured
+    if "file" in config.common.logging_config.get("handlers", {}):
+        log_file_path = config.common.logging_config["handlers"]["file"]["filename"]
+        # Replace %(user_data_dir)s with actual user data directory
+        log_file_path = log_file_path.replace("%(user_data_dir)s", config.common.user_data_dir)
+        config.common.logging_config["handlers"]["file"]["filename"] = log_file_path
+
+        # Ensure log directory exists
+        Path(log_file_path).parent.mkdir(parents=True, exist_ok=True)
+
+    if verbose and len(verbose) == 1:
+        config.common.logging_config["handlers"]["console"]["level"] = "INFO"
         dictConfig(config.common.logging_config)
         logger.info("Setting log level to INFO")
         return
 
-    if len(verbose) > 1:
-        config.common.logging_config["root"]["level"] = "DEBUG"
+    if verbose and len(verbose) > 1:
+        config.common.logging_config["handlers"]["console"]["level"] = "DEBUG"
         dictConfig(config.common.logging_config)
         logger.info("Setting log level to DEBUG")
         return
+
+    # Default case: apply configuration as-is
+    dictConfig(config.common.logging_config)
 
 
 __all__ = ["AliasedGroup", "click_verbose_option", "config_logging"]
