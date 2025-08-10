@@ -48,3 +48,45 @@ jobs:
         fail_ci_if_error: true
         token: ${{ secrets.CODECOV_TOKEN }}
       if: matrix.python-version == '3.10'
+
+  version-check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+
+    - name: Set up Python
+      run: uv python install 3.12
+
+    - name: Check version bump
+      run: |
+        # Get current version
+        CURRENT_VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+
+        # Get main branch version
+        git checkout origin/main -- pyproject.toml
+        MAIN_VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+        git checkout - -- pyproject.toml
+
+        echo "Main branch version: $MAIN_VERSION"
+        echo "Current PR version: $CURRENT_VERSION"
+
+        # Compare versions using Python
+        uv run python -c "
+        import sys
+        from packaging import version
+
+        main_ver = version.parse('$MAIN_VERSION')
+        current_ver = version.parse('$CURRENT_VERSION')
+
+        if current_ver <= main_ver:
+            print(f'ERROR: Version must be bumped. Current: {current_ver}, Main: {main_ver}')
+            sys.exit(1)
+        else:
+            print(f'SUCCESS: Version properly bumped from {main_ver} to {current_ver}')
+        "
