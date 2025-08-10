@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 
 from moro.modules.common import CommonConfig
 from moro.modules.fantia.config import FantiaConfig
+from moro.modules.todo.config import TodoModuleConfig
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ class ConfigRepository(BaseModel):
 
     common: CommonConfig = Field(default_factory=CommonConfig)  # Common configuration instance
     fantia: FantiaConfig = Field(default_factory=FantiaConfig)  # Fantia-specific configuration
+    todo: TodoModuleConfig = Field(default_factory=TodoModuleConfig)  # Todo module configuration
 
     @classmethod
     def create(
@@ -66,6 +68,10 @@ class ConfigRepository(BaseModel):
             binder.bind(ConfigRepository, to=self)
             binder.bind(CommonConfig, to=self.common)
             binder.bind(FantiaConfig, to=self.fantia)
+            binder.bind(TodoModuleConfig, to=self.todo)
+            # Todo module specific config binding
+            from moro.modules.todo.infrastructure import TodoConfig
+            binder.bind(TodoConfig, to=self.todo.todo)
 
         return configure
 
