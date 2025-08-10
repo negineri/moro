@@ -12,9 +12,9 @@ moro プロジェクトのレイヤードアーキテクチャとDDD原則を実
 """
 
 # 公開インターフェース
-from .config import TodoModuleConfig
+from .config import TodoConfig
 from .domain import Priority, Todo, TodoID, TodoRepository, validate_priority
-from .infrastructure import InMemoryTodoRepository, TodoConfig
+from .infrastructure import InMemoryTodoRepository
 from .usecases import (
     CreateTodoRequest,
     CreateTodoUseCase,
@@ -36,7 +36,6 @@ __all__ = [
     "Todo",
     "TodoConfig",
     "TodoID",
-    "TodoModuleConfig",
     "TodoRepository",
     "TodoResponse",
     "ToggleTodoUseCase",

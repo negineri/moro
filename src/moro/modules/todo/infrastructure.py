@@ -10,45 +10,11 @@
 - インフラとドメインの分離
 """
 
-
 from injector import inject
-from pydantic import BaseModel, Field
+
+from moro.modules.todo.config import TodoConfig
 
 from .domain import Todo, TodoID
-
-
-class TodoConfig(BaseModel):
-    """Todo モジュールの設定
-
-    Pydantic による設定管理の例：
-    - 型安全性の確保
-    - バリデーション機能
-    - 設定ファイルとの自動連携
-    - デフォルト値の管理
-
-    教育的ポイント:
-    - Pydantic による設定パターン
-    - Field による詳細なバリデーション
-    - ビジネス制約の設定への反映
-    - 運用性を考慮した設定設計
-    """
-    max_todos: int = Field(
-        default=1000,
-        ge=1,
-        le=10000,
-        description="最大 Todo 保存件数"
-    )
-    auto_cleanup_days: int = Field(
-        default=30,
-        ge=1,
-        le=365,
-        description="完了済み Todo の自動削除日数"
-    )
-    default_priority: str = Field(
-        default="medium",
-        pattern="^(high|medium|low)$",
-        description="デフォルト優先度"
-    )
 
 
 class InMemoryTodoRepository:
@@ -109,11 +75,8 @@ class InMemoryTodoRepository:
         """
         # 最大件数チェック（新規追加の場合のみ）
         todo_key = str(todo.id)
-        if (todo_key not in self._todos and
-            len(self._todos) >= self._config.max_todos):
-            raise ValueError(
-                f"最大 Todo 件数 ({self._config.max_todos}) に達しています"
-            )
+        if todo_key not in self._todos and len(self._todos) >= self._config.max_todos:
+            raise ValueError(f"最大 Todo 件数 ({self._config.max_todos}) に達しています")
 
         self._todos[todo_key] = todo
         return todo
@@ -161,10 +124,7 @@ class InMemoryTodoRepository:
         - ビジネス条件のインフラでの実装
         - 関数型的なアプローチ
         """
-        return [
-            todo for todo in self._todos.values()
-            if todo.is_completed == is_completed
-        ]
+        return [todo for todo in self._todos.values() if todo.is_completed == is_completed]
 
     def delete(self, todo_id: TodoID) -> bool:
         """Todo を削除する
@@ -198,10 +158,7 @@ class InMemoryTodoRepository:
         - 辞書操作の原子性確保
         """
         # 完了済み Todo のキーを収集
-        completed_keys = [
-            str(todo.id) for todo in self._todos.values()
-            if todo.is_completed
-        ]
+        completed_keys = [str(todo.id) for todo in self._todos.values() if todo.is_completed]
 
         # 一括削除実行
         for key in completed_keys:

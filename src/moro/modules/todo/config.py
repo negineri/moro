@@ -9,19 +9,16 @@
 - 設定の階層化と管理
 """
 
-from pydantic import BaseModel
-
-from .infrastructure import TodoConfig
+from pydantic import BaseModel, Field
 
 
-class TodoModuleConfig(BaseModel):
+class TodoConfig(BaseModel):
     """Todo モジュール全体の設定
 
     ConfigRepository への登録用設定クラス。
     moro プロジェクトの設定管理パターンに準拠。
 
     設計判断:
-    - TodoConfig を内包した階層構造
     - 将来の設定拡張に対応した構造
     - 型安全性を保証した設定管理
 
@@ -30,5 +27,14 @@ class TodoModuleConfig(BaseModel):
     - Pydantic による型安全な設定
     - モジュールレベルでの設定統一
     - デフォルト値による設定の簡略化
+    - Field による詳細なバリデーション
+    - ビジネス制約の設定への反映
     """
-    todo: TodoConfig = TodoConfig()
+
+    max_todos: int = Field(default=1000, ge=1, le=10000, description="最大 Todo 保存件数")
+    auto_cleanup_days: int = Field(
+        default=30, ge=1, le=365, description="完了済み Todo の自動削除日数"
+    )
+    default_priority: str = Field(
+        default="medium", pattern="^(high|medium|low)$", description="デフォルト優先度"
+    )
