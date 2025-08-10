@@ -1,5 +1,6 @@
 """Progress bar management for CLI operations."""
 
+from types import TracebackType
 from typing import Any
 
 from tqdm import tqdm
@@ -60,3 +61,26 @@ class PostsProgressManager:
             self.current_download_progress.close()
             self.current_download_progress = None
         self.main_progress.close()
+
+    def __enter__(self) -> "PostsProgressManager":
+        """コンテキストマネージャーのエントリーポイント.
+
+        Returns:
+            自身のインスタンス
+        """
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        """コンテキストマネージャーの終了処理.
+
+        Args:
+            exc_type: 例外の型
+            exc_val: 例外の値
+            exc_tb: トレースバック
+        """
+        self.close()

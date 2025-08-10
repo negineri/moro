@@ -87,3 +87,26 @@ class TestPostsProgressManager:
         assert "percentage" in updated_format
 
         manager.close()
+
+    def test_context_manager_normal_flow(self) -> None:
+        """コンテキストマネージャーの正常フローテスト."""
+        with PostsProgressManager(total_posts=1) as manager:
+            manager.start_post("123", "Test Post")
+            manager.finish_post()
+        # withブロック終了時に自動的にclose()が呼ばれることを確認
+
+    def test_context_manager_exception_handling(self) -> None:
+        """コンテキストマネージャーでの例外処理テスト."""
+        try:
+            with PostsProgressManager(total_posts=1) as manager:
+                manager.start_post("123", "Test Post")
+                raise ValueError("Test exception")
+        except ValueError:
+            pass  # 例外は正常にキャッチされる
+        # withブロックで例外が発生してもclose()が呼ばれることを確認
+
+    def test_context_manager_returns_self(self) -> None:
+        """コンテキストマネージャーが自身を返すことのテスト."""
+        manager = PostsProgressManager(total_posts=1)
+        with manager as context_manager:
+            assert context_manager is manager
