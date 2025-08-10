@@ -33,11 +33,12 @@ build-backend = "hatchling.build"
 [tool.mypy]
 strict = true
 exclude = [
-    "tests/", # Optional: Skip if using stubs/mocks
+    "tests/",           # Optional: Skip if using stubs/mocks
     "build/",
     "dist/",
     "docs/",
     "temp/",
+    ".github/scripts/",
 ]
 plugins = [
     # "pydantic.mypy"  # If you're using pydantic
@@ -46,7 +47,7 @@ plugins = [
 [tool.ruff]
 line-length = 100
 fix = true
-exclude = ["build", "dist", ".venv", "tests/mocks"]
+exclude = ["build", "dist", ".venv", "tests/mocks", ".github/scripts"]
 src = ["app", "src"]
 unsafe-fixes = false
 

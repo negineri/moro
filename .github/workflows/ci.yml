@@ -66,27 +66,12 @@ jobs:
     - name: Check version bump
       run: |
         # Get current version
-        CURRENT_VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+        CURRENT_VERSION=$(uv run python .github/scripts/get_version.py pyproject.toml)
 
         # Get main branch version
         git checkout origin/main -- pyproject.toml
-        MAIN_VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+        MAIN_VERSION=$(uv run python .github/scripts/get_version.py pyproject.toml)
         git checkout - -- pyproject.toml
 
-        echo "Main branch version: $MAIN_VERSION"
-        echo "Current PR version: $CURRENT_VERSION"
-
-        # Compare versions using Python
-        uv run python -c "
-        import sys
-        from packaging import version
-
-        main_ver = version.parse('$MAIN_VERSION')
-        current_ver = version.parse('$CURRENT_VERSION')
-
-        if current_ver <= main_ver:
-            print(f'ERROR: Version must be bumped. Current: {current_ver}, Main: {main_ver}')
-            sys.exit(1)
-        else:
-            print(f'SUCCESS: Version properly bumped from {main_ver} to {current_ver}')
-        "
+        # Compare versions
+        uv run python .github/scripts/check_version_bump.py "$CURRENT_VERSION" "$MAIN_VERSION"
