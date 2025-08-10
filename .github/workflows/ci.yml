@@ -71,7 +71,6 @@ jobs:
         # Get main branch version
         git checkout origin/main -- pyproject.toml
         MAIN_VERSION=$(uv run --python 3.12 python .github/scripts/get_version.py pyproject.toml)
-        git checkout - -- pyproject.toml
 
         # Compare versions
         uv run --python 3.12 python .github/scripts/check_version_bump.py "$CURRENT_VERSION" "$MAIN_VERSION"
