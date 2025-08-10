@@ -27,19 +27,19 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync
-        uv run pre-commit install
+        uv sync --python ${{ matrix.python-version }}
+        uv run --python ${{ matrix.python-version }} pre-commit install
 
     - name: Lint with Ruff
       if: matrix.python-version == '3.10'
-      run: uv run ruff check
+      run: uv run --python ${{ matrix.python-version }} ruff check
 
     - name: Type check with MyPy
       if: matrix.python-version == '3.10'
-      run: uv run mypy src/
+      run: uv run --python ${{ matrix.python-version }} mypy src/
 
     - name: Test with pytest
-      run: uv run pytest --cov=src --cov-report=xml --cov-report=term-missing
+      run: uv run --python ${{ matrix.python-version }} pytest --cov=src --cov-report=xml --cov-report=term-missing
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
@@ -48,3 +48,29 @@ jobs:
         fail_ci_if_error: true
         token: ${{ secrets.CODECOV_TOKEN }}
       if: matrix.python-version == '3.10'
+
+  version-check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+
+    - name: Set up Python
+      run: uv python install 3.12
+
+    - name: Check version bump
+      run: |
+        # Get current version
+        CURRENT_VERSION=$(uv run --python 3.12 python .github/scripts/get_version.py pyproject.toml)
+
+        # Get main branch version
+        git checkout origin/main -- pyproject.toml
+        MAIN_VERSION=$(uv run --python 3.12 python .github/scripts/get_version.py pyproject.toml)
+
+        # Compare versions
+        uv run --python 3.12 python .github/scripts/check_version_bump.py "$CURRENT_VERSION" "$MAIN_VERSION"

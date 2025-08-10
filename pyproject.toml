@@ -1,6 +1,6 @@
 [project]
 name = "moro"
-version = "0.4.1"
+version = "0.4.2"
 description = "Add your description here"
 readme = "README.md"
 authors = [{ name = "negineri", email = "negineri@sfc.wide.ad.jp" }]
@@ -33,11 +33,12 @@ build-backend = "hatchling.build"
 [tool.mypy]
 strict = true
 exclude = [
-    "tests/", # Optional: Skip if using stubs/mocks
+    "tests/",           # Optional: Skip if using stubs/mocks
     "build/",
     "dist/",
     "docs/",
     "temp/",
+    ".github/scripts/",
 ]
 plugins = [
     # "pydantic.mypy"  # If you're using pydantic
@@ -46,7 +47,7 @@ plugins = [
 [tool.ruff]
 line-length = 100
 fix = true
-exclude = ["build", "dist", ".venv", "tests/mocks"]
+exclude = ["build", "dist", ".venv", "tests/mocks", ".github/scripts"]
 src = ["app", "src"]
 unsafe-fixes = false
 
@@ -86,7 +87,7 @@ ignore = [
 convention = "google"
 
 [tool.bumpversion]
-current_version = "0.4.1"
+current_version = "0.4.2"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 search = "{current_version}"
@@ -111,6 +112,7 @@ post_commit_hooks = []
 dev = [
     "bump-my-version>=1.1.2",
     "mypy>=1.15.0",
+    "packaging>=24.0",
     "polyfactory>=2.18.0",
     "pytest>=8.3.5",
     "pytest-cov>=6.1.1",
