@@ -55,23 +55,21 @@ def posts(post_id: tuple[str], fanclub_id: str, verbose: tuple[bool]) -> None:
             return
         post_ids.extend(post for post in fanclub.posts)
 
-    progress_manager = PostsProgressManager(total_posts=len(post_ids))
-    try:
-        save_usecase = injector.get(FantiaSavePostUseCase)
-        posts_iterator = injector.get(FantiaGetPostsUseCase).execute(post_ids)
+    with PostsProgressManager(total_posts=len(post_ids)) as progress_manager:
+        try:
+            save_usecase = injector.get(FantiaSavePostUseCase)
+            posts_iterator = injector.get(FantiaGetPostsUseCase).execute(post_ids)
 
-        for post in posts_iterator:
-            progress_manager.start_post(post.id, post.title)
-            save_usecase.execute(post)
-            progress_manager.finish_post()
+            for post in posts_iterator:
+                progress_manager.start_post(post.id, post.title)
+                save_usecase.execute(post)
+                progress_manager.finish_post()
 
-    except KeyboardInterrupt:
-        click.echo("\nOperation cancelled by user")
-    except Exception as e:
-        click.echo(f"Error during processing: {e}")
-        raise
-    finally:
-        progress_manager.close()
+        except KeyboardInterrupt:
+            click.echo("\nOperation cancelled by user")
+        except Exception as e:
+            click.echo(f"Error during processing: {e}")
+            raise
 
 
 @fantia.command()
