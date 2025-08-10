@@ -27,19 +27,19 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync
-        uv run pre-commit install
+        uv sync --python ${{ matrix.python-version }}
+        uv run --python ${{ matrix.python-version }} pre-commit install
 
     - name: Lint with Ruff
       if: matrix.python-version == '3.10'
-      run: uv run ruff check
+      run: uv run --python ${{ matrix.python-version }} ruff check
 
     - name: Type check with MyPy
       if: matrix.python-version == '3.10'
-      run: uv run mypy src/
+      run: uv run --python ${{ matrix.python-version }} mypy src/
 
     - name: Test with pytest
-      run: uv run pytest --cov=src --cov-report=xml --cov-report=term-missing
+      run: uv run --python ${{ matrix.python-version }} pytest --cov=src --cov-report=xml --cov-report=term-missing
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
@@ -66,12 +66,12 @@ jobs:
     - name: Check version bump
       run: |
         # Get current version
-        CURRENT_VERSION=$(uv run python .github/scripts/get_version.py pyproject.toml)
+        CURRENT_VERSION=$(uv run --python 3.12 python .github/scripts/get_version.py pyproject.toml)
 
         # Get main branch version
         git checkout origin/main -- pyproject.toml
-        MAIN_VERSION=$(uv run python .github/scripts/get_version.py pyproject.toml)
+        MAIN_VERSION=$(uv run --python 3.12 python .github/scripts/get_version.py pyproject.toml)
         git checkout - -- pyproject.toml
 
         # Compare versions
-        uv run python .github/scripts/check_version_bump.py "$CURRENT_VERSION" "$MAIN_VERSION"
+        uv run --python 3.12 python .github/scripts/check_version_bump.py "$CURRENT_VERSION" "$MAIN_VERSION"
