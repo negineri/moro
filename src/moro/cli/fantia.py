@@ -8,6 +8,7 @@ from logging import getLogger
 
 import click
 
+from moro.cli._progress import PostsProgressManager
 from moro.cli._utils import AliasedGroup, click_verbose_option, config_logging
 from moro.config.settings import ConfigRepository
 from moro.dependencies.container import create_injector
@@ -41,7 +42,7 @@ def fantia() -> None:
 )
 @click_verbose_option
 def posts(post_id: tuple[str], fanclub_id: str, verbose: tuple[bool]) -> None:
-    """Download posts by their IDs."""
+    """Download posts by their IDs with progress bar."""
     config = ConfigRepository.create()
     config_logging(config, verbose)
     injector = create_injector(config)
@@ -51,12 +52,24 @@ def posts(post_id: tuple[str], fanclub_id: str, verbose: tuple[bool]) -> None:
         fanclub = injector.get(FantiaGetFanclubUseCase).execute(fanclub_id)
         if not fanclub:
             click.echo(f"Fanclub with ID {fanclub_id} not found.")
-        else:
-            post_ids.extend(post for post in fanclub.posts)
+            return
+        post_ids.extend(post for post in fanclub.posts)
 
-    posts = injector.get(FantiaGetPostsUseCase).execute(post_ids)
-    for post in posts:
-        injector.get(FantiaSavePostUseCase).execute(post)
+    with PostsProgressManager(total_posts=len(post_ids)) as progress_manager:
+        try:
+            save_usecase = injector.get(FantiaSavePostUseCase)
+            posts_iterator = injector.get(FantiaGetPostsUseCase).execute(post_ids)
+
+            for post in posts_iterator:
+                progress_manager.start_post(post.id, post.title)
+                save_usecase.execute(post)
+                progress_manager.finish_post()
+
+        except KeyboardInterrupt:
+            click.echo("\nOperation cancelled by user")
+        except Exception as e:
+            click.echo(f"Error during processing: {e}")
+            raise
 
 
 @fantia.command()
