@@ -1,6 +1,6 @@
 [project]
 name = "moro"
-version = "0.5.0"
+version = "0.6.0"
 description = "Add your description here"
 readme = "README.md"
 authors = [{ name = "negineri", email = "negineri@sfc.wide.ad.jp" }]
@@ -18,6 +18,7 @@ dependencies = [
     "pydantic>=2.11.3",
     "python-dotenv>=1.1.0",
     "selenium>=4.34.0",
+    "table2ascii>=0.4.0",
     "tomli>=2.2.1",
     "tomli-w>=1.2.0",
     "tqdm>=4.65.0",
@@ -88,7 +89,7 @@ ignore = [
 convention = "google"
 
 [tool.bumpversion]
-current_version = "0.5.0"
+current_version = "0.6.0"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 search = "{current_version}"

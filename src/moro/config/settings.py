@@ -14,8 +14,10 @@ from typing import Any
 import tomli
 from injector import Binder
 from pydantic import BaseModel, Field
+from pydantic.v1.utils import deep_update
 
 from moro.modules.common import CommonConfig
+from moro.modules.epgstation.config import EPGStationConfig
 from moro.modules.fantia.config import FantiaConfig
 from moro.modules.todo.config import TodoConfig
 
@@ -38,6 +40,9 @@ class ConfigRepository(BaseModel):
     """
 
     common: CommonConfig = Field(default_factory=CommonConfig)  # Common configuration instance
+    epgstation: EPGStationConfig = Field(
+        default_factory=EPGStationConfig
+    )  # EPGStation configuration
     fantia: FantiaConfig = Field(default_factory=FantiaConfig)  # Fantia-specific configuration
     todo: TodoConfig = Field(default_factory=TodoConfig)  # Todo module configuration
 
@@ -51,10 +56,10 @@ class ConfigRepository(BaseModel):
 
         etc_options = load_config_files(paths=paths)
         env_options = load_env_vars()
-        etc_options.update(env_options)
-        etc_options.update(options)
+        fixed_options = deep_update(etc_options, env_options)
+        fixed_options = deep_update(fixed_options, options)
 
-        return cls(**etc_options)
+        return cls(**fixed_options)
 
     def create_injector_builder(self) -> Callable[[Binder], None]:
         """
@@ -67,6 +72,7 @@ class ConfigRepository(BaseModel):
         def configure(binder: Binder) -> None:
             binder.bind(ConfigRepository, to=self)
             binder.bind(CommonConfig, to=self.common)
+            binder.bind(EPGStationConfig, to=self.epgstation)
             binder.bind(FantiaConfig, to=self.fantia)
             binder.bind(TodoConfig, to=self.todo)
 

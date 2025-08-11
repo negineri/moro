@@ -64,3 +64,5 @@ modules/{module_name}/
   - テストコードでも Ruff + MyPy 厳格モードに従う
 - `tests/*+`のみ日本語コメント可
 - 実装を終えたら pytest で確認する
+- TYPE_CHECKING は injector による注入が想定される箇所で使用してはならない
+  - [Evaluation of forward references using if TYPE_CHECKING? #145](https://github.com/python-injector/injector/issues/145)

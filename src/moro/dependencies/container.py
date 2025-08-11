@@ -6,6 +6,11 @@ from typing import TypeVar
 from injector import Binder, Injector, singleton
 
 from moro.config.settings import ConfigRepository
+from moro.modules.epgstation.domain import EPGStationSessionProvider, RecordingRepository
+from moro.modules.epgstation.infrastructure import (
+    EPGStationRecordingRepository,
+    SeleniumEPGStationSessionProvider,
+)
 from moro.modules.fantia.domain import (
     FantiaFanclubRepository,
     FantiaPostRepository,
@@ -24,6 +29,10 @@ _T = TypeVar("_T")
 
 def configure(binder: Binder) -> None:
     """Configure the dependency injection container."""
+    # EPGStation module bindings
+    binder.bind(EPGStationSessionProvider, to=SeleniumEPGStationSessionProvider)  # type: ignore[type-abstract]
+    binder.bind(RecordingRepository, to=EPGStationRecordingRepository)  # type: ignore[type-abstract]
+
     # Fantia module bindings
     binder.bind(SessionIdProvider, to=SeleniumSessionIdProvider)  # type: ignore[type-abstract]
     binder.bind(FantiaPostRepository, to=FantiaPostRepositoryImpl)  # type: ignore[type-abstract]
