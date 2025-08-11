@@ -5,7 +5,9 @@ import logging
 import os
 import time
 from pathlib import Path
+from urllib.parse import urljoin
 
+import httpx
 from injector import inject
 from selenium.webdriver.chrome.options import Options
 
@@ -200,8 +202,14 @@ class SeleniumEPGStationSessionProvider:
             セッションが有効な場合 True
         """
         # 簡単な validation - より複雑なチェックが必要な場合は後で実装
-        required_cookies = ["session", "_oauth2_proxy"]
-        return any(cookie_name in cookies for cookie_name in required_cookies)
+        version_endpoint = urljoin(self._epgstation_config.base_url, "/api/version")
+        try:
+            response = httpx.get(version_endpoint, cookies=cookies)
+            response.raise_for_status()
+            json_response = response.json()  # JSON レスポンスを確認
+            return "version" in json_response
+        except Exception:
+            return False
 
 
 @inject

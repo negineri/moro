@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
+from injector import Injector
 
 from moro.modules.epgstation.infrastructure import (
     CookieCacheManager,
@@ -291,3 +292,15 @@ class TestSessionValidation:
         # 不要な Cookie のみ
         irrelevant_cookies: dict[str, str] = {"some_other_cookie": "value"}
         assert provider._is_session_valid(irrelevant_cookies) is False
+
+    def test_should_handle_invalid_json_response(self, injector: Injector) -> None:
+        """Version エンドポイントの呼び出しで無効な JSON が返された場合のハンドリング"""
+        provider = injector.get(SeleniumEPGStationSessionProvider)
+
+        with patch("moro.modules.epgstation.infrastructure.httpx.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"version": "1.0.0"}
+            assert provider._is_session_valid({}) is True
+
+            mock_get.return_value.json.side_effect = json.JSONDecodeError("Invalid JSON", "", 0)
+            assert provider._is_session_valid({}) is False
