@@ -16,6 +16,7 @@ from injector import Binder
 from pydantic import BaseModel, Field
 
 from moro.modules.common import CommonConfig
+from moro.modules.epgstation.config import EPGStationConfig
 from moro.modules.fantia.config import FantiaConfig
 from moro.modules.todo.config import TodoConfig
 
@@ -38,6 +39,9 @@ class ConfigRepository(BaseModel):
     """
 
     common: CommonConfig = Field(default_factory=CommonConfig)  # Common configuration instance
+    epgstation: EPGStationConfig = Field(
+        default_factory=EPGStationConfig
+    )  # EPGStation configuration
     fantia: FantiaConfig = Field(default_factory=FantiaConfig)  # Fantia-specific configuration
     todo: TodoConfig = Field(default_factory=TodoConfig)  # Todo module configuration
 
@@ -67,6 +71,7 @@ class ConfigRepository(BaseModel):
         def configure(binder: Binder) -> None:
             binder.bind(ConfigRepository, to=self)
             binder.bind(CommonConfig, to=self.common)
+            binder.bind(EPGStationConfig, to=self.epgstation)
             binder.bind(FantiaConfig, to=self.fantia)
             binder.bind(TodoConfig, to=self.todo)
 

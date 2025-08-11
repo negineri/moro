@@ -10,7 +10,7 @@ class EPGStationConfig(BaseModel):
 
     # 基本設定
     base_url: str = Field(
-        ..., description="EPGStation ベースURL（例: https://epgstation.example.com）"
+        default="https://epgstation.example.com", description="EPGStation ベースURL"
     )
 
     # Selenium設定

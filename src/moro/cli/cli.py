@@ -6,6 +6,7 @@ import click
 
 from moro.cli._utils import AliasedGroup, config_logging
 from moro.cli.config import config
+from moro.cli.epgstation import epgstation
 from moro.cli.example import example
 from moro.cli.fantia import fantia
 from moro.cli.pixiv import pixiv
@@ -28,6 +29,7 @@ def cli() -> None:
 
 
 cli.add_command(config)
+cli.add_command(epgstation)
 cli.add_command(example)
 cli.add_command(tracklist)
 cli.add_command(download)

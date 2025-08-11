@@ -1,7 +1,7 @@
 """EPGStation ドメインモデル"""
 
 from enum import Enum
-from typing import Annotated
+from typing import Annotated, Protocol
 
 from pydantic import BaseModel, Field
 
@@ -45,7 +45,7 @@ class RecordingData(BaseModel):
     is_recording: bool = Field(description="録画中かどうか")
     is_protected: bool = Field(description="自動削除対象外か")
 
-    def model_post_init(self, __context: dict[str, object]) -> None:
+    def model_post_init(self, _: dict[str, object]) -> None:
         """Post-init validation"""
         if self.end_at <= self.start_at:
             raise ValueError("end_at must be greater than start_at")
@@ -61,3 +61,38 @@ class RecordingData(BaseModel):
     def duration_minutes(self) -> int:
         """録画時間（分）"""
         return (self.end_at - self.start_at) // (1000 * 60)
+
+
+# Repository インターフェース定義
+class EPGStationSessionProvider(Protocol):
+    """EPGStation 認証セッション提供者"""
+
+    def get_cookies(self) -> dict[str, str]:
+        """認証済み Cookie を取得
+
+        Returns:
+            認証済み Cookie 辞書
+
+        Raises:
+            AuthenticationError: 認証に失敗した場合
+        """
+        ...
+
+
+class RecordingRepository(Protocol):
+    """録画データリポジトリ"""
+
+    def get_all(self, limit: int = 1000, offset: int = 0) -> list[RecordingData]:
+        """全録画データを取得
+
+        Args:
+            limit: 取得最大件数
+            offset: 取得開始位置
+
+        Returns:
+            録画データリスト
+
+        Raises:
+            APIError: API アクセスに失敗した場合
+        """
+        ...
