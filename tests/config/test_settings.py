@@ -42,6 +42,7 @@ class TestConfigRepository:
 
         assert config_repo.common.jobs == 8
         assert config_repo.common.working_dir == "/env/dir"
+        assert config_repo.common.logging_config != {}
 
     def test_create_injector_builder(self) -> None:
         """Injectorビルダーの作成"""

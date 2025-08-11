@@ -14,6 +14,7 @@ from typing import Any
 import tomli
 from injector import Binder
 from pydantic import BaseModel, Field
+from pydantic.v1.utils import deep_update
 
 from moro.modules.common import CommonConfig
 from moro.modules.epgstation.config import EPGStationConfig
@@ -55,10 +56,10 @@ class ConfigRepository(BaseModel):
 
         etc_options = load_config_files(paths=paths)
         env_options = load_env_vars()
-        etc_options.update(env_options)
-        etc_options.update(options)
+        fixed_options = deep_update(etc_options, env_options)
+        fixed_options = deep_update(fixed_options, options)
 
-        return cls(**etc_options)
+        return cls(**fixed_options)
 
     def create_injector_builder(self) -> Callable[[Binder], None]:
         """
