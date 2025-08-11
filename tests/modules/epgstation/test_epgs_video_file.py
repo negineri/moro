@@ -51,10 +51,9 @@ def test_should_format_file_size_in_appropriate_unit_when_large_size() -> None:
 def test_should_handle_zero_size_gracefully_when_empty_file() -> None:
     """ゼロバイトファイルの表示テスト"""
     with pytest.raises(ValidationError):
-        video_file = VideoFile(
+        VideoFile(
             id=1, name="empty_file", filename="empty.ts", type=VideoFileType.TS, size=0
         )
-        assert video_file.formatted_size == "0B"
 
 
 def test_should_create_video_file_with_all_required_fields() -> None:
