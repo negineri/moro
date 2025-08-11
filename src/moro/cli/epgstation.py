@@ -4,6 +4,7 @@ import json
 from abc import ABC, abstractmethod
 
 import click
+from table2ascii import PresetStyle, table2ascii
 
 from moro.cli._utils import click_verbose_option, config_logging
 from moro.config.settings import ConfigRepository
@@ -25,7 +26,7 @@ class OutputFormatter(ABC):
 
 
 class TableFormatter(OutputFormatter):
-    """テーブル形式フォーマッター"""
+    """テーブル形式フォーマッター（table2ascii使用）"""
 
     def format(self, recordings: list["RecordingData"]) -> str:
         """録画データをテーブル形式でフォーマット"""
@@ -73,27 +74,11 @@ class TableFormatter(OutputFormatter):
         if not rows:
             return "データがありません。"
 
-        col_widths: list[int] = []
-        for i in range(len(headers)):
-            width = len(headers[i])
-            for row in rows:
-                if i < len(row):
-                    width = max(width, len(str(row[i])))
-            col_widths.append(width + 2)
-
-        header_line = "│".join(h.ljust(w) for h, w in zip(headers, col_widths, strict=False))
-        separator_line = "─" * len(header_line)
-
-        data_lines: list[str] = []
-        for row in rows:
-            padded_row: list[str] = []
-            for i in range(len(headers)):
-                cell = str(row[i]) if i < len(row) else ""
-                padded_row.append(cell.ljust(col_widths[i]))
-            data_lines.append("│".join(padded_row))
-
-        result = [header_line, separator_line, *data_lines]
-        return "\n".join(result)
+        return table2ascii(
+            header=headers,
+            body=rows,
+            style=PresetStyle.ascii_box,
+        )
 
 
 class JsonFormatter(OutputFormatter):
@@ -105,8 +90,10 @@ class JsonFormatter(OutputFormatter):
             return self.format_empty_message()
 
         try:
-            data = [recording.model_dump() for recording in recordings]
-            return json.dumps(data, ensure_ascii=False, indent=2)
+            # Pydantic model_dump_json() を使用してJSONシリアライゼーション
+            json_strings = [recording.model_dump_json() for recording in recordings]
+            # 個別のJSON文字列を配列として結合
+            return "[\n  " + ",\n  ".join(json_strings) + "\n]"
         except Exception as e:
             import logging
 

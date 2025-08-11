@@ -18,6 +18,7 @@ dependencies = [
     "pydantic>=2.11.3",
     "python-dotenv>=1.1.0",
     "selenium>=4.34.0",
+    "table2ascii>=0.4.0",
     "tomli>=2.2.1",
     "tomli-w>=1.2.0",
     "tqdm>=4.65.0",
