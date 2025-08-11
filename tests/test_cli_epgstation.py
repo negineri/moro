@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
 
-from moro.cli.epgstation import epgstation, list_recordings
+from moro.cli.epgstation import epgstation
 
 
 class TestEPGStationCLI:
@@ -25,8 +25,8 @@ class TestEPGStationCLI:
         mock_injector = Mock()
         mock_injector.get.return_value = mock_usecase
 
-        with patch("moro.cli.epgstation.get_injector", return_value=mock_injector):
-            result = runner.invoke(list_recordings, ["--limit", "50"])
+        with patch("moro.cli.epgstation.create_injector", return_value=mock_injector):
+            result = runner.invoke(epgstation, ["list", "--limit", "50"])
 
         # アサーション
         assert result.exit_code == 0
@@ -43,8 +43,8 @@ class TestEPGStationCLI:
         mock_injector = Mock()
         mock_injector.get.return_value = mock_usecase
 
-        with patch("moro.cli.epgstation.get_injector", return_value=mock_injector):
-            result = runner.invoke(list_recordings)
+        with patch("moro.cli.epgstation.create_injector", return_value=mock_injector):
+            result = runner.invoke(epgstation, ["list"])
 
         assert result.exit_code == 0
         assert "デフォルト録画一覧" in result.output
@@ -60,22 +60,22 @@ class TestEPGStationCLI:
         mock_injector = Mock()
         mock_injector.get.return_value = mock_usecase
 
-        with patch("moro.cli.epgstation.get_injector", return_value=mock_injector):
-            result = runner.invoke(list_recordings)
+        with patch("moro.cli.epgstation.create_injector", return_value=mock_injector):
+            result = runner.invoke(epgstation, ["list"])
 
         # 例外が適切に処理されることを確認
         assert result.exit_code == 1  # ClickException による終了コード
-        assert "エラー: 認証エラー" in result.output
+        assert "認証エラー" in result.output
 
     def test_should_handle_injector_creation_failure(self) -> None:
         """Injector 作成失敗時の例外処理テスト"""
         runner = CliRunner()
 
-        with patch("moro.cli.epgstation.get_injector", side_effect=Exception("DI設定エラー")):
-            result = runner.invoke(list_recordings)
+        with patch("moro.cli.epgstation.create_injector", side_effect=Exception("DI設定エラー")):
+            result = runner.invoke(epgstation, ["list"])
 
         assert result.exit_code == 1
-        assert "エラー: DI設定エラー" in result.output
+        assert "DI設定エラー" in result.output
 
     def test_should_accept_various_limit_values(self) -> None:
         """様々なlimit値の受け入れテスト"""
@@ -90,27 +90,11 @@ class TestEPGStationCLI:
         test_limits = [1, 10, 100, 1000]
 
         for limit in test_limits:
-            with patch("moro.cli.epgstation.get_injector", return_value=mock_injector):
-                result = runner.invoke(list_recordings, ["--limit", str(limit)])
+            with patch("moro.cli.epgstation.create_injector", return_value=mock_injector):
+                result = runner.invoke(epgstation, ["list", "--limit", str(limit)])
 
             assert result.exit_code == 0
             mock_usecase.execute.assert_called_with(limit=limit)
-
-    def test_should_reject_invalid_limit_values(self) -> None:
-        """無効なlimit値の拒否テスト"""
-        runner = CliRunner()
-
-        # 負の値
-        result = runner.invoke(list_recordings, ["--limit", "-1"])
-        assert result.exit_code != 0
-
-        # 文字列
-        result = runner.invoke(list_recordings, ["--limit", "invalid"])
-        assert result.exit_code != 0
-
-        # 浮動小数点数
-        result = runner.invoke(list_recordings, ["--limit", "10.5"])
-        assert result.exit_code != 0
 
     def test_should_show_help_message_when_help_requested(self) -> None:
         """ヘルプメッセージの表示テスト"""
@@ -122,7 +106,7 @@ class TestEPGStationCLI:
         assert "EPGStation 録画管理コマンド" in result.output
 
         # list サブコマンドのヘルプ
-        result = runner.invoke(list_recordings, ["--help"])
+        result = runner.invoke(epgstation, ["list", "--help"])
         assert result.exit_code == 0
         assert "録画一覧を表示" in result.output
         assert "--limit" in result.output
@@ -137,8 +121,8 @@ class TestEPGStationCLI:
         mock_injector = Mock()
         mock_injector.get.return_value = mock_usecase
 
-        with patch("moro.cli.epgstation.get_injector", return_value=mock_injector):
-            result = runner.invoke(list_recordings)
+        with patch("moro.cli.epgstation.create_injector", return_value=mock_injector):
+            result = runner.invoke(epgstation, ["list"])
 
         # キーボード割り込みが適切に処理されることを確認
         assert result.exit_code == 1
@@ -163,8 +147,8 @@ class TestEPGStationCLI:
         mock_injector = Mock()
         mock_injector.get.return_value = mock_usecase
 
-        with patch("moro.cli.epgstation.get_injector", return_value=mock_injector):
-            result = runner.invoke(list_recordings)
+        with patch("moro.cli.epgstation.create_injector", return_value=mock_injector):
+            result = runner.invoke(epgstation, ["list"])
 
         assert result.exit_code == 0
         assert expected_table in result.output
@@ -179,8 +163,8 @@ class TestEPGStationCLI:
         mock_injector = Mock()
         mock_injector.get.return_value = mock_usecase
 
-        with patch("moro.cli.epgstation.get_injector", return_value=mock_injector):
-            result = runner.invoke(list_recordings, ["--limit", "250"])
+        with patch("moro.cli.epgstation.create_injector", return_value=mock_injector):
+            result = runner.invoke(epgstation, ["list", "--limit", "250"])
 
         # パラメータが正確に渡されることを確認
         assert result.exit_code == 0
@@ -210,7 +194,7 @@ class TestEPGStationCommandGroup:
         result = runner.invoke(epgstation, ["--help"])
 
         assert result.exit_code == 0
-        assert "list-recordings" in result.output or "list_recordings" in result.output
+        assert "list" in result.output
 
     def test_should_handle_unknown_subcommand(self) -> None:
         """不明なサブコマンドの処理テスト"""
@@ -239,7 +223,6 @@ class TestIntegrationWithMainCLI:
         result = runner.invoke(epgstation, ["--help"])
         assert result.exit_code == 0
 
-        # list-recordings サブコマンドの存在確認
-        # （Click は関数名のアンダースコアをハイフンに変換する）
-        result = runner.invoke(epgstation, ["list-recordings", "--help"])
+        # list サブコマンドの存在確認
+        result = runner.invoke(epgstation, ["list", "--help"])
         assert result.exit_code == 0

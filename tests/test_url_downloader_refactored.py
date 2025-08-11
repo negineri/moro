@@ -2,16 +2,13 @@
 
 import os
 import zipfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Any
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
-    from typing import Any
 
 from moro.modules.url_downloader import (
     DownloadError,
@@ -223,8 +220,11 @@ class TestDownloadFromUrlList:
     @mock.patch("moro.modules.url_downloader.save_content")
     @mock.patch("moro.modules.url_downloader.read_url_list")
     def test_download_from_url_list_success(
-        self, mock_read: MagicMock, mock_save: MagicMock, mock_download: MagicMock,
-        sample_urls: list[str]
+        self,
+        mock_read: MagicMock,
+        mock_save: MagicMock,
+        mock_download: MagicMock,
+        sample_urls: list[str],
     ) -> None:
         """すべてのURLでダウンロードが成功した場合の動作確認."""
         mock_read.return_value = sample_urls
@@ -232,7 +232,7 @@ class TestDownloadFromUrlList:
         mock_save.side_effect = [
             "/path/to/file_1.txt",
             "/path/to/file_2.pdf",
-            "/path/to/file_3.jpg"
+            "/path/to/file_3.jpg",
         ]
 
         result = download_from_url_list("urls.txt", "/path/to")
@@ -245,8 +245,11 @@ class TestDownloadFromUrlList:
     @mock.patch("moro.modules.url_downloader.save_content")
     @mock.patch("moro.modules.url_downloader.read_url_list")
     def test_download_from_url_list_with_failure(
-        self, mock_read: MagicMock, mock_save: MagicMock, mock_download: MagicMock,
-        sample_urls: list[str]
+        self,
+        mock_read: MagicMock,
+        mock_save: MagicMock,
+        mock_download: MagicMock,
+        sample_urls: list[str],
     ) -> None:
         """一部のURLでダウンロードが失敗した場合の動作確認."""
         mock_read.return_value = sample_urls
@@ -266,8 +269,7 @@ class TestDownloadFromUrlList:
     @mock.patch("moro.modules.url_downloader.download_content")
     @mock.patch("moro.modules.url_downloader.read_url_list")
     def test_download_from_url_list_with_prefix(
-        self, mock_read: MagicMock, mock_download: MagicMock,
-        mock_save_content: "Any"
+        self, mock_read: MagicMock, mock_download: MagicMock, mock_save_content: "Any"
     ) -> None:
         """プレフィックスが指定された場合の動作確認."""
         urls = ["https://example.com/file.txt"]
@@ -283,8 +285,11 @@ class TestDownloadFromUrlList:
     @mock.patch("moro.modules.url_downloader.download_content")
     @mock.patch("moro.modules.url_downloader.read_url_list")
     def test_download_with_auto_prefix(
-        self, mock_read: MagicMock, mock_download: MagicMock,
-        mock_save_content: "Any", sample_urls: list[str]
+        self,
+        mock_read: MagicMock,
+        mock_download: MagicMock,
+        mock_save_content: "Any",
+        sample_urls: list[str],
     ) -> None:
         """自動プレフィックスが正しく適用されることを確認."""
         mock_read.return_value = sample_urls
@@ -299,8 +304,11 @@ class TestDownloadFromUrlList:
     @mock.patch("moro.modules.url_downloader.download_content")
     @mock.patch("moro.modules.url_downloader.read_url_list")
     def test_download_with_auto_prefix_double_digit(
-        self, mock_read: MagicMock, mock_download: MagicMock,
-        mock_save_content: "Any", large_url_list: list[str]
+        self,
+        mock_read: MagicMock,
+        mock_download: MagicMock,
+        mock_save_content: "Any",
+        large_url_list: list[str],
     ) -> None:
         """10個以上のURLで自動プレフィックスが正しく適用されることを確認."""
         mock_read.return_value = large_url_list
@@ -319,8 +327,11 @@ class TestDownloadFromUrlListZip:
 
     @mock.patch("moro.modules.url_downloader.download_content")
     def test_download_to_zip_basic(
-        self, mock_download: MagicMock, tmp_path: Path,
-        create_url_file: "Callable[[list[str], str], str]", sample_urls: list[str]
+        self,
+        mock_download: MagicMock,
+        tmp_path: Path,
+        create_url_file: "Callable[[list[str], str], str]",
+        sample_urls: list[str],
     ) -> None:
         """基本的なZIPへのダウンロードが正しく動作することを確認."""
         url_file = create_url_file(sample_urls, "urls.txt")
@@ -347,8 +358,11 @@ class TestDownloadFromUrlListZip:
 
     @mock.patch("moro.modules.url_downloader.download_content")
     def test_download_to_zip_with_auto_prefix(
-        self, mock_download: MagicMock, tmp_path: Path,
-        create_url_file: "Callable[[list[str], str], str]", sample_urls: list[str]
+        self,
+        mock_download: MagicMock,
+        tmp_path: Path,
+        create_url_file: "Callable[[list[str], str], str]",
+        sample_urls: list[str],
     ) -> None:
         """自動プレフィックス付きでZIPモードが正しく動作することを確認."""
         url_file = create_url_file(sample_urls, "urls.txt")
