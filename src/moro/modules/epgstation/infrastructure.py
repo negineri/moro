@@ -5,14 +5,13 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from selenium.webdriver.chrome.options import Options
+from injector import inject
+from selenium.webdriver.chrome.options import Options
 
-    from moro.modules.common import CommonConfig
-    from moro.modules.epgstation.config import EPGStationConfig
-    from moro.modules.epgstation.domain import EPGStationSessionProvider, RecordingData
+from moro.modules.common import CommonConfig
+from moro.modules.epgstation.config import EPGStationConfig
+from moro.modules.epgstation.domain import EPGStationSessionProvider, RecordingData
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +82,7 @@ class CookieCacheManager:
             return None
 
 
+@inject
 class SeleniumEPGStationSessionProvider:
     """Selenium ベースの EPGStation セッション認証"""
 
@@ -204,6 +204,7 @@ class SeleniumEPGStationSessionProvider:
         return any(cookie_name in cookies for cookie_name in required_cookies)
 
 
+@inject
 class EPGStationRecordingRepository:
     """EPGStation 録画データリポジトリ実装"""
 

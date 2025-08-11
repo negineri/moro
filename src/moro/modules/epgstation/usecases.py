@@ -1,19 +1,19 @@
 """EPGStation ユースケース実装"""
 
 import logging
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from moro.modules.epgstation.domain import RecordingData
-    from moro.modules.epgstation.infrastructure import EPGStationRecordingRepository
+from injector import inject
+
+from moro.modules.epgstation.domain import RecordingData, RecordingRepository
 
 logger = logging.getLogger(__name__)
 
 
+@inject
 class ListRecordingsUseCase:
     """録画一覧取得ユースケース"""
 
-    def __init__(self, recording_repository: "EPGStationRecordingRepository") -> None:
+    def __init__(self, recording_repository: "RecordingRepository") -> None:
         """初期化
 
         Args:
@@ -50,7 +50,7 @@ class ListRecordingsUseCase:
             return "録画データが見つかりませんでした。"
 
         headers = ["録画ID", "タイトル", "開始時刻", "ファイル名", "種別", "サイズ"]
-        rows = []
+        rows: list[list[str]] = []
 
         for recording in recordings:
             if not recording.video_files:
@@ -107,7 +107,7 @@ class ListRecordingsUseCase:
             return "データがありません。"
 
         # 各列の最大幅を計算
-        col_widths = []
+        col_widths: list[int] = []
         for i in range(len(headers)):
             width = len(headers[i])
             for row in rows:
@@ -120,9 +120,9 @@ class ListRecordingsUseCase:
         separator_line = "─" * len(header_line)
 
         # データ行を作成
-        data_lines = []
+        data_lines: list[str] = []
         for row in rows:
-            padded_row = []
+            padded_row: list[str] = []
             for i in range(len(headers)):
                 cell = str(row[i]) if i < len(row) else ""
                 padded_row.append(cell.ljust(col_widths[i]))
