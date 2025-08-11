@@ -63,7 +63,7 @@ class TestEPGStationCLIIntegration:
         assert "ファイル名" in output
         assert "種別" in output
         assert "サイズ" in output
-        assert "│" in output  # テーブル区切り
+        assert "|" in output  # テーブル区切り（table2ascii）
         assert "12345" in output
         assert "互換性テスト番組" in output
 
@@ -150,7 +150,8 @@ class TestEPGStationCLIIntegration:
         assert result.exit_code == 0
         # テーブル形式の確認（JSONではない）
         assert "録画ID" in result.output
-        assert "│" in result.output
+        # table2ascii のテーブル文字確認
+        assert any(char in result.output for char in ["|", "+", "-"])
         # JSON形式ではないことを確認
         with pytest.raises(json.JSONDecodeError):
             json.loads(result.output)
@@ -306,7 +307,10 @@ class TestEPGStationCLIIntegration:
 
         format_combinations = [
             (["--format", "table"], "録画ID"),  # Table形式の期待文字列
-            (["--format", "json"], '"id": 1'),  # JSON形式の期待文字列
+            (
+                ["--format", "json"],
+                '"id":1',
+            ),  # JSON形式の期待文字列（model_dump_json はスペースなし）
         ]
 
         for args, expected_content in format_combinations:

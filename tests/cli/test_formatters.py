@@ -44,7 +44,7 @@ class TestTableFormatter:
         assert "ファイル名" in result
         assert "種別" in result
         assert "サイズ" in result
-        assert "│" in result  # テーブル区切り文字
+        assert "|" in result or "+" in result  # table2ascii のテーブル文字
         assert "12345" in result
         assert "テスト番組" in result
         assert "program.ts" in result
@@ -273,9 +273,9 @@ class TestJsonFormatter:
     def test_format_fallback_on_serialization_error(self) -> None:
         """シリアライゼーション失敗時のフォールバック動作"""
         # Given
-        # model_dump() が失敗するような録画データをモック
+        # model_dump_json() が失敗するような録画データをモック
         mock_recording = Mock(spec=RecordingData)
-        mock_recording.model_dump.side_effect = Exception("Serialization error")
+        mock_recording.model_dump_json.side_effect = Exception("JSON serialization error")
         mock_recording.id = 999
         mock_recording.name = "エラーテスト番組"
         mock_recording.formatted_start_time = "2023-08-11 10:00"
@@ -334,7 +334,7 @@ class TestJsonFormatter:
         mock_recording = Mock()
         # id アクセスも失敗する状況
         type(mock_recording).id = PropertyMock(side_effect=Exception("Complete failure"))
-        mock_recording.model_dump.side_effect = Exception("Serialization error")
+        mock_recording.model_dump_json.side_effect = Exception("Serialization error")
 
         formatter = JsonFormatter()
 
