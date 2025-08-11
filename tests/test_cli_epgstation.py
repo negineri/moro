@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 from click.testing import CliRunner
 
 from moro.cli.epgstation import epgstation
+from moro.modules.epgstation.domain import RecordingData
 
 
 class TestEPGStationCLI:
@@ -19,7 +20,18 @@ class TestEPGStationCLI:
 
         # ユースケースのモック
         mock_usecase = Mock()
-        mock_usecase.execute.return_value = "録画一覧テーブル"
+        test_recordings = [
+            RecordingData(
+                id=123,
+                name="テスト番組",
+                start_at=1691683200000,
+                end_at=1691686800000,
+                video_files=[],
+                is_recording=False,
+                is_protected=False,
+            )
+        ]
+        mock_usecase.execute.return_value = test_recordings
 
         # Injector のモック
         mock_injector = Mock()
@@ -30,7 +42,8 @@ class TestEPGStationCLI:
 
         # アサーション
         assert result.exit_code == 0
-        assert "録画一覧テーブル" in result.output
+        assert "録画ID" in result.output  # テーブルヘッダー
+        assert "テスト番組" in result.output  # データ内容
         mock_usecase.execute.assert_called_once_with(limit=50)
 
     def test_should_use_default_limit_when_no_option_provided(self) -> None:
@@ -38,7 +51,18 @@ class TestEPGStationCLI:
         runner = CliRunner()
 
         mock_usecase = Mock()
-        mock_usecase.execute.return_value = "デフォルト録画一覧"
+        test_recordings = [
+            RecordingData(
+                id=456,
+                name="デフォルトテスト",
+                start_at=1691683200000,
+                end_at=1691686800000,
+                video_files=[],
+                is_recording=False,
+                is_protected=False,
+            )
+        ]
+        mock_usecase.execute.return_value = test_recordings
 
         mock_injector = Mock()
         mock_injector.get.return_value = mock_usecase
@@ -47,7 +71,8 @@ class TestEPGStationCLI:
             result = runner.invoke(epgstation, ["list"])
 
         assert result.exit_code == 0
-        assert "デフォルト録画一覧" in result.output
+        assert "録画ID" in result.output  # テーブルヘッダー
+        assert "デフォルトテスト" in result.output  # データ内容
         mock_usecase.execute.assert_called_once_with(limit=100)  # デフォルト値
 
     def test_should_handle_usecase_exception_gracefully(self) -> None:
@@ -82,7 +107,18 @@ class TestEPGStationCLI:
         runner = CliRunner()
 
         mock_usecase = Mock()
-        mock_usecase.execute.return_value = "結果"
+        test_recordings = [
+            RecordingData(
+                id=789,
+                name="リミットテスト",
+                start_at=1691683200000,
+                end_at=1691686800000,
+                video_files=[],
+                is_recording=False,
+                is_protected=False,
+            )
+        ]
+        mock_usecase.execute.return_value = test_recordings
 
         mock_injector = Mock()
         mock_injector.get.return_value = mock_usecase
@@ -94,6 +130,7 @@ class TestEPGStationCLI:
                 result = runner.invoke(epgstation, ["list", "--limit", str(limit)])
 
             assert result.exit_code == 0
+            assert "録画ID" in result.output  # テーブルヘッダー
             mock_usecase.execute.assert_called_with(limit=limit)
 
     def test_should_show_help_message_when_help_requested(self) -> None:
@@ -133,16 +170,20 @@ class TestEPGStationCLI:
         """ユースケース結果の直接表示テスト"""
         runner = CliRunner()
 
-        expected_table = (
-            "録画ID│タイトル                                  │開始時刻         │"
-            "ファイル名    │種別    │サイズ    \n"
-            "─────────────────────────────────────────────────────────────────────────────────────────\n"
-            "123   │テスト番組                                │2022-01-01 00:00 │"
-            "test.ts       │TS      │1.00GB    "
-        )
+        test_recordings = [
+            RecordingData(
+                id=123,
+                name="テスト番組",
+                start_at=1641020400000,  # 2022-01-01 00:00 JST
+                end_at=1641024000000,
+                video_files=[],
+                is_recording=False,
+                is_protected=False,
+            )
+        ]
 
         mock_usecase = Mock()
-        mock_usecase.execute.return_value = expected_table
+        mock_usecase.execute.return_value = test_recordings
 
         mock_injector = Mock()
         mock_injector.get.return_value = mock_usecase
@@ -151,14 +192,27 @@ class TestEPGStationCLI:
             result = runner.invoke(epgstation, ["list"])
 
         assert result.exit_code == 0
-        assert expected_table in result.output
+        assert "録画ID" in result.output  # テーブルヘッダー
+        assert "テスト番組" in result.output  # データ内容
+        assert "123" in result.output  # 録画ID
 
     def test_should_pass_correct_parameters_to_usecase(self) -> None:
         """ユースケースに正しいパラメータが渡されることをテスト"""
         runner = CliRunner()
 
         mock_usecase = Mock()
-        mock_usecase.execute.return_value = "結果"
+        test_recordings = [
+            RecordingData(
+                id=250,
+                name="パラメータテスト",
+                start_at=1691683200000,
+                end_at=1691686800000,
+                video_files=[],
+                is_recording=False,
+                is_protected=False,
+            )
+        ]
+        mock_usecase.execute.return_value = test_recordings
 
         mock_injector = Mock()
         mock_injector.get.return_value = mock_usecase
