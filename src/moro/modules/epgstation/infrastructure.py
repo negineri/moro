@@ -163,7 +163,7 @@ class SeleniumEPGStationSessionProvider:
                 input("ブラウザで認証を完了してください。完了したら Enter キーを押してください...")
 
                 # 認証完了後の Cookie を取得
-                cookies = driver.get_cookies()
+                cookies: list[dict[str, str]] = driver.get_cookies()
                 result = {cookie["name"]: cookie["value"] for cookie in cookies}
 
                 logger.info(f"Obtained {len(result)} cookies from browser")
@@ -259,10 +259,10 @@ class EPGStationRecordingRepository:
                 response.raise_for_status()
 
                 data = response.json()
-                recordings = []
+                recordings: list[RecordingData] = []
 
                 for item in data.get("records", []):
-                    video_files = []
+                    video_files: list[VideoFile] = []
 
                     for vf in item.get("videoFiles", []):
                         try:
