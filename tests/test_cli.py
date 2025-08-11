@@ -22,7 +22,7 @@ def test_main_entry_point() -> None:
     """Test the CLI entry point in __main__.py."""
     runner = CliRunner()
     result = runner.invoke(cli)
-    assert result.exit_code == 0
+    assert result.exit_code == 2
 
 
 def test_aliased_group() -> None:

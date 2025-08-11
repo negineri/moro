@@ -36,8 +36,27 @@ src/moro/
 ### 拡張パターン
 
 - 新 CLI コマンド: `cli/`に追加後、`cli.py`で登録
-- 新機能 `modules/`で Config 作成、`ConfigRepository`に追加、ドメインモデルを実装、モジュール内のアーキテクチャはある程度自由
 - 新機能: モジュールを跨ぐ機能は`scenarios/`に実装する
+
+### モジュール構造
+
+新しいモジュールを `modules/` に追加する際は、以下の標準構造を採用：
+
+```text
+modules/{module_name}/
+├── __init__.py
+├── config.py          # Pydantic による設定管理
+├── domain.py          # ドメインモデル・エンティティ
+├── infrastructure.py  # 外部システム連携・データアクセス
+└── usecases.py        # ビジネスロジック・ユースケース
+```
+
+各ファイルの責務：
+
+- `config.py`: Pydantic モデルによる設定定義、`ConfigRepository` への登録
+- `domain.py`: ドメインエンティティ、値オブジェクト、ドメインサービス
+- `infrastructure.py`: リポジトリ実装、外部 API クライアント、データベースアクセス
+- `usecases.py`: アプリケーションサービス、ユースケース実装
 
 ## コードスタイル
 
