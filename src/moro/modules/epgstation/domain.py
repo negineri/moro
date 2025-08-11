@@ -17,10 +17,10 @@ class VideoFile(BaseModel):
     """ビデオファイル値オブジェクト"""
 
     id: Annotated[int, Field(description="ビデオファイルID")]
-    name: Annotated[str, Field(description="表示名")]
+    name: Annotated[str, Field(min_length=1, description="表示名")]
     filename: Annotated[str, Field(description="ファイル名")]
     type: Annotated[VideoFileType, Field(description="ファイル種別")]
-    size: Annotated[int, Field(description="ファイルサイズ（バイト）")]
+    size: Annotated[int, Field(ge=1, description="ファイルサイズ（バイト）")]
 
     @property
     def formatted_size(self) -> str:
@@ -38,12 +38,17 @@ class RecordingData(BaseModel):
     """録画データエンティティ"""
 
     id: int = Field(description="録画ID")
-    name: str = Field(description="番組タイトル")
+    name: str = Field(min_length=1, description="番組タイトル")
     start_at: int = Field(description="開始時刻（Unix timestamp ms）")
     end_at: int = Field(description="終了時刻（Unix timestamp ms）")
     video_files: list[VideoFile] = Field(description="ビデオファイル一覧")
     is_recording: bool = Field(description="録画中かどうか")
     is_protected: bool = Field(description="自動削除対象外か")
+
+    def model_post_init(self, __context: dict[str, object]) -> None:
+        """Post-init validation"""
+        if self.end_at <= self.start_at:
+            raise ValueError("end_at must be greater than start_at")
 
     @property
     def formatted_start_time(self) -> str:
