@@ -14,8 +14,9 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
+from moro.modules.todo.config import TodoConfig
 from moro.modules.todo.domain import Todo, TodoID
-from moro.modules.todo.infrastructure import InMemoryTodoRepository, TodoConfig
+from moro.modules.todo.infrastructure import InMemoryTodoRepository
 
 
 class TestTodoConfig:

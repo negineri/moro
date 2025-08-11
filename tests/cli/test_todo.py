@@ -25,13 +25,15 @@ from moro.modules.todo.usecases import (
 class TestTodoCliAdd:
     """todo add コマンドのテスト"""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """各テストメソッドの前に実行される共通セットアップ"""
         self.runner = CliRunner()
 
-    @patch('moro.cli.todo.create_injector')
-    @patch('moro.cli.todo.ConfigRepository.create')
-    def test_add_command_success(self, mock_config_create, mock_create_injector):
+    @patch("moro.cli.todo.create_injector")
+    @patch("moro.cli.todo.ConfigRepository.create")
+    def test_add_command_success(
+        self, mock_config_create: Mock, mock_create_injector: Mock
+    ) -> None:
         """Add コマンド成功テスト"""
         # モックの設定
         mock_config = Mock()
@@ -51,13 +53,13 @@ class TestTodoCliAdd:
             priority="high",
             is_completed=False,
             created_at=datetime(2024, 1, 1, 10, 0, 0),
-            updated_at=datetime(2024, 1, 1, 10, 0, 0)
+            updated_at=datetime(2024, 1, 1, 10, 0, 0),
         )
         mock_usecase.execute.return_value = mock_response
 
         # コマンド実行
         result = self.runner.invoke(
-            todo, ['add', 'テストタスク', '--description', 'テスト説明', '--priority', 'high']
+            todo, ["add", "テストタスク", "--description", "テスト説明", "--priority", "high"]
         )
 
         # 結果検証
@@ -75,9 +77,11 @@ class TestTodoCliAdd:
         assert call_args.description == "テスト説明"
         assert call_args.priority == "high"
 
-    @patch('moro.cli.todo.create_injector')
-    @patch('moro.cli.todo.ConfigRepository.create')
-    def test_add_command_with_defaults(self, mock_config_create, mock_create_injector):
+    @patch("moro.cli.todo.create_injector")
+    @patch("moro.cli.todo.ConfigRepository.create")
+    def test_add_command_with_defaults(
+        self, mock_config_create: Mock, mock_create_injector: Mock
+    ) -> None:
         """デフォルト値での add コマンドテスト"""
         # モックの設定
         mock_config = Mock()
@@ -97,12 +101,12 @@ class TestTodoCliAdd:
             priority="medium",
             is_completed=False,
             created_at=datetime(2024, 1, 1, 10, 0, 0),
-            updated_at=datetime(2024, 1, 1, 10, 0, 0)
+            updated_at=datetime(2024, 1, 1, 10, 0, 0),
         )
         mock_usecase.execute.return_value = mock_response
 
         # コマンド実行（最小限の引数）
-        result = self.runner.invoke(todo, ['add', '最小限タスク'])
+        result = self.runner.invoke(todo, ["add", "最小限タスク"])
 
         # 結果検証
         assert result.exit_code == 0
@@ -116,9 +120,11 @@ class TestTodoCliAdd:
         assert call_args.description == ""
         assert call_args.priority == "medium"
 
-    @patch('moro.cli.todo.create_injector')
-    @patch('moro.cli.todo.ConfigRepository.create')
-    def test_add_command_validation_error(self, mock_config_create, mock_create_injector):
+    @patch("moro.cli.todo.create_injector")
+    @patch("moro.cli.todo.ConfigRepository.create")
+    def test_add_command_validation_error(
+        self, mock_config_create: Mock, mock_create_injector: Mock
+    ) -> None:
         """バリデーションエラーのテスト"""
         # モックの設定
         mock_config = Mock()
@@ -134,15 +140,15 @@ class TestTodoCliAdd:
         mock_usecase.execute.side_effect = ValueError("タイトルは必須です")
 
         # コマンド実行
-        result = self.runner.invoke(todo, ['add', ''])
+        result = self.runner.invoke(todo, ["add", ""])
 
         # エラー結果の検証
         assert result.exit_code == 1
         assert "エラー: タイトルは必須です" in result.output
 
-    def test_add_command_invalid_priority(self):
+    def test_add_command_invalid_priority(self) -> None:
         """不正な優先度のテスト"""
-        result = self.runner.invoke(todo, ['add', 'テストタスク', '--priority', 'invalid'])
+        result = self.runner.invoke(todo, ["add", "テストタスク", "--priority", "invalid"])
 
         # Click の Choice バリデーションでエラーになる
         assert result.exit_code == 2
@@ -152,13 +158,15 @@ class TestTodoCliAdd:
 class TestTodoCliList:
     """todo list コマンドのテスト"""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """各テストメソッドの前に実行される共通セットアップ"""
         self.runner = CliRunner()
 
-    @patch('moro.cli.todo.create_injector')
-    @patch('moro.cli.todo.ConfigRepository.create')
-    def test_list_command_success(self, mock_config_create, mock_create_injector):
+    @patch("moro.cli.todo.create_injector")
+    @patch("moro.cli.todo.ConfigRepository.create")
+    def test_list_command_success(
+        self, mock_config_create: Mock, mock_create_injector: Mock
+    ) -> None:
         """List コマンド成功テスト"""
         # モックの設定
         mock_config = Mock()
@@ -179,7 +187,7 @@ class TestTodoCliList:
                 priority="high",
                 is_completed=False,
                 created_at=datetime(2024, 1, 1, 10, 0, 0),
-                updated_at=datetime(2024, 1, 1, 10, 0, 0)
+                updated_at=datetime(2024, 1, 1, 10, 0, 0),
             ),
             TodoResponse(
                 id="todo-2-ghijkl34",
@@ -188,13 +196,13 @@ class TestTodoCliList:
                 priority="medium",
                 is_completed=True,
                 created_at=datetime(2024, 1, 1, 9, 0, 0),
-                updated_at=datetime(2024, 1, 1, 11, 0, 0)
+                updated_at=datetime(2024, 1, 1, 11, 0, 0),
             ),
         ]
         mock_usecase.execute.return_value = mock_responses
 
         # コマンド実行
-        result = self.runner.invoke(todo, ['list'])
+        result = self.runner.invoke(todo, ["list"])
 
         # 結果検証
         assert result.exit_code == 0
@@ -206,9 +214,9 @@ class TestTodoCliList:
         assert "重要なタスク" in result.output
         assert "合計: 2件 (完了: 1件, 未完了: 1件)" in result.output
 
-    @patch('moro.cli.todo.create_injector')
-    @patch('moro.cli.todo.ConfigRepository.create')
-    def test_list_command_empty(self, mock_config_create, mock_create_injector):
+    @patch("moro.cli.todo.create_injector")
+    @patch("moro.cli.todo.ConfigRepository.create")
+    def test_list_command_empty(self, mock_config_create: Mock, mock_create_injector: Mock) -> None:
         """空の結果のテスト"""
         # モックの設定
         mock_config = Mock()
@@ -222,15 +230,17 @@ class TestTodoCliList:
         mock_usecase.execute.return_value = []
 
         # コマンド実行
-        result = self.runner.invoke(todo, ['list'])
+        result = self.runner.invoke(todo, ["list"])
 
         # 結果検証
         assert result.exit_code == 0
         assert "Todo はありません" in result.output
 
-    @patch('moro.cli.todo.create_injector')
-    @patch('moro.cli.todo.ConfigRepository.create')
-    def test_list_command_with_completed_filter(self, mock_config_create, mock_create_injector):
+    @patch("moro.cli.todo.create_injector")
+    @patch("moro.cli.todo.ConfigRepository.create")
+    def test_list_command_with_completed_filter(
+        self, mock_config_create: Mock, mock_create_injector: Mock
+    ) -> None:
         """--completed フィルターのテスト"""
         # モックの設定
         mock_config = Mock()
@@ -244,21 +254,20 @@ class TestTodoCliList:
         mock_usecase.execute.return_value = []
 
         # コマンド実行
-        result = self.runner.invoke(todo, ['list', '--completed'])
+        result = self.runner.invoke(todo, ["list", "--completed"])
 
         # 結果検証
         assert result.exit_code == 0
         assert "完了済みの Todo はありません" in result.output
 
         # ユースケースが正しい引数で呼ばれることを確認
-        mock_usecase.execute.assert_called_once_with(
-            completed_only=True,
-            sort_by_priority=False
-        )
+        mock_usecase.execute.assert_called_once_with(completed_only=True, sort_by_priority=False)
 
-    @patch('moro.cli.todo.create_injector')
-    @patch('moro.cli.todo.ConfigRepository.create')
-    def test_list_command_with_pending_filter(self, mock_config_create, mock_create_injector):
+    @patch("moro.cli.todo.create_injector")
+    @patch("moro.cli.todo.ConfigRepository.create")
+    def test_list_command_with_pending_filter(
+        self, mock_config_create: Mock, mock_create_injector: Mock
+    ) -> None:
         """--pending フィルターのテスト"""
         # モックの設定
         mock_config = Mock()
@@ -272,28 +281,27 @@ class TestTodoCliList:
         mock_usecase.execute.return_value = []
 
         # コマンド実行
-        result = self.runner.invoke(todo, ['list', '--pending'])
+        result = self.runner.invoke(todo, ["list", "--pending"])
 
         # 結果検証
         assert result.exit_code == 0
 
         # ユースケースが正しい引数で呼ばれることを確認
-        mock_usecase.execute.assert_called_once_with(
-            completed_only=False,
-            sort_by_priority=False
-        )
+        mock_usecase.execute.assert_called_once_with(completed_only=False, sort_by_priority=False)
 
-    def test_list_command_conflicting_filters(self):
+    def test_list_command_conflicting_filters(self) -> None:
         """競合するフィルターのテスト"""
-        result = self.runner.invoke(todo, ['list', '--completed', '--pending'])
+        result = self.runner.invoke(todo, ["list", "--completed", "--pending"])
 
         # エラー結果の検証
         assert result.exit_code == 1
         assert "--completed と --pending は同時に指定できません" in result.output
 
-    @patch('moro.cli.todo.create_injector')
-    @patch('moro.cli.todo.ConfigRepository.create')
-    def test_list_command_with_priority_sort(self, mock_config_create, mock_create_injector):
+    @patch("moro.cli.todo.create_injector")
+    @patch("moro.cli.todo.ConfigRepository.create")
+    def test_list_command_with_priority_sort(
+        self, mock_config_create: Mock, mock_create_injector: Mock
+    ) -> None:
         """--sort-by-priority のテスト"""
         # モックの設定
         mock_config = Mock()
@@ -307,28 +315,27 @@ class TestTodoCliList:
         mock_usecase.execute.return_value = []
 
         # コマンド実行
-        result = self.runner.invoke(todo, ['list', '--sort-by-priority'])
+        result = self.runner.invoke(todo, ["list", "--sort-by-priority"])
 
         # 結果検証
         assert result.exit_code == 0
 
         # ユースケースが正しい引数で呼ばれることを確認
-        mock_usecase.execute.assert_called_once_with(
-            completed_only=None,
-            sort_by_priority=True
-        )
+        mock_usecase.execute.assert_called_once_with(completed_only=None, sort_by_priority=True)
 
 
 class TestTodoCliUpdate:
     """todo update コマンドのテスト"""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """各テストメソッドの前に実行される共通セットアップ"""
         self.runner = CliRunner()
 
-    @patch('moro.cli.todo.create_injector')
-    @patch('moro.cli.todo.ConfigRepository.create')
-    def test_update_command_success(self, mock_config_create, mock_create_injector):
+    @patch("moro.cli.todo.create_injector")
+    @patch("moro.cli.todo.ConfigRepository.create")
+    def test_update_command_success(
+        self, mock_config_create: Mock, mock_create_injector: Mock
+    ) -> None:
         """Update コマンド成功テスト"""
         # モックの設定
         mock_config = Mock()
@@ -348,17 +355,24 @@ class TestTodoCliUpdate:
             priority="low",
             is_completed=False,
             created_at=datetime(2024, 1, 1, 10, 0, 0),
-            updated_at=datetime(2024, 1, 1, 12, 0, 0)
+            updated_at=datetime(2024, 1, 1, 12, 0, 0),
         )
         mock_usecase.execute.return_value = mock_response
 
         # コマンド実行
-        result = self.runner.invoke(todo, [
-            'update', 'test-id-789',
-            '--title', '更新されたタスク',
-            '--description', '新しい説明',
-            '--priority', 'low'
-        ])
+        result = self.runner.invoke(
+            todo,
+            [
+                "update",
+                "test-id-789",
+                "--title",
+                "更新されたタスク",
+                "--description",
+                "新しい説明",
+                "--priority",
+                "low",
+            ],
+        )
 
         # 結果検証
         assert result.exit_code == 0
@@ -373,17 +387,19 @@ class TestTodoCliUpdate:
         assert call_args.description == "新しい説明"
         assert call_args.priority == "low"
 
-    def test_update_command_no_options(self):
+    def test_update_command_no_options(self) -> None:
         """オプションが指定されていない場合のエラーテスト"""
-        result = self.runner.invoke(todo, ['update', 'test-id'])
+        result = self.runner.invoke(todo, ["update", "test-id"])
 
         # エラー結果の検証
         assert result.exit_code == 1
         assert "更新する項目を指定してください" in result.output
 
-    @patch('moro.cli.todo.create_injector')
-    @patch('moro.cli.todo.ConfigRepository.create')
-    def test_update_command_not_found(self, mock_config_create, mock_create_injector):
+    @patch("moro.cli.todo.create_injector")
+    @patch("moro.cli.todo.ConfigRepository.create")
+    def test_update_command_not_found(
+        self, mock_config_create: Mock, mock_create_injector: Mock
+    ) -> None:
         """存在しない Todo の更新でエラーテスト"""
         # モックの設定
         mock_config = Mock()
@@ -398,7 +414,7 @@ class TestTodoCliUpdate:
 
         # コマンド実行
         result = self.runner.invoke(
-            todo, ['update', 'non-existent-id', '--title', '新しいタイトル']
+            todo, ["update", "non-existent-id", "--title", "新しいタイトル"]
         )
 
         # エラー結果の検証
@@ -409,13 +425,15 @@ class TestTodoCliUpdate:
 class TestTodoCliToggle:
     """todo toggle コマンドのテスト"""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """各テストメソッドの前に実行される共通セットアップ"""
         self.runner = CliRunner()
 
-    @patch('moro.cli.todo.create_injector')
-    @patch('moro.cli.todo.ConfigRepository.create')
-    def test_toggle_command_to_completed(self, mock_config_create, mock_create_injector):
+    @patch("moro.cli.todo.create_injector")
+    @patch("moro.cli.todo.ConfigRepository.create")
+    def test_toggle_command_to_completed(
+        self, mock_config_create: Mock, mock_create_injector: Mock
+    ) -> None:
         """完了状態への切り替えテスト"""
         # モックの設定
         mock_config = Mock()
@@ -435,20 +453,22 @@ class TestTodoCliToggle:
             priority="medium",
             is_completed=True,
             created_at=datetime(2024, 1, 1, 10, 0, 0),
-            updated_at=datetime(2024, 1, 1, 12, 0, 0)
+            updated_at=datetime(2024, 1, 1, 12, 0, 0),
         )
         mock_usecase.execute.return_value = mock_response
 
         # コマンド実行
-        result = self.runner.invoke(todo, ['toggle', 'toggle-id-123'])
+        result = self.runner.invoke(todo, ["toggle", "toggle-id-123"])
 
         # 結果検証
         assert result.exit_code == 0
         assert "✅ Todo を完了にしました: 切り替えタスク" in result.output
 
-    @patch('moro.cli.todo.create_injector')
-    @patch('moro.cli.todo.ConfigRepository.create')
-    def test_toggle_command_to_incomplete(self, mock_config_create, mock_create_injector):
+    @patch("moro.cli.todo.create_injector")
+    @patch("moro.cli.todo.ConfigRepository.create")
+    def test_toggle_command_to_incomplete(
+        self, mock_config_create: Mock, mock_create_injector: Mock
+    ) -> None:
         """未完了状態への切り替えテスト"""
         # モックの設定
         mock_config = Mock()
@@ -468,12 +488,12 @@ class TestTodoCliToggle:
             priority="medium",
             is_completed=False,
             created_at=datetime(2024, 1, 1, 10, 0, 0),
-            updated_at=datetime(2024, 1, 1, 12, 0, 0)
+            updated_at=datetime(2024, 1, 1, 12, 0, 0),
         )
         mock_usecase.execute.return_value = mock_response
 
         # コマンド実行
-        result = self.runner.invoke(todo, ['toggle', 'toggle-id-456'])
+        result = self.runner.invoke(todo, ["toggle", "toggle-id-456"])
 
         # 結果検証
         assert result.exit_code == 0
@@ -483,13 +503,15 @@ class TestTodoCliToggle:
 class TestTodoCliDelete:
     """todo delete コマンドのテスト"""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """各テストメソッドの前に実行される共通セットアップ"""
         self.runner = CliRunner()
 
-    @patch('moro.cli.todo.create_injector')
-    @patch('moro.cli.todo.ConfigRepository.create')
-    def test_delete_command_with_confirmation(self, mock_config_create, mock_create_injector):
+    @patch("moro.cli.todo.create_injector")
+    @patch("moro.cli.todo.ConfigRepository.create")
+    def test_delete_command_with_confirmation(
+        self, mock_config_create: Mock, mock_create_injector: Mock
+    ) -> None:
         """確認ありでの削除テスト"""
         # モックの設定
         mock_config = Mock()
@@ -503,16 +525,18 @@ class TestTodoCliDelete:
         mock_usecase.execute.return_value = True  # 削除成功
 
         # コマンド実行（確認に 'y' で応答）
-        result = self.runner.invoke(todo, ['delete', 'delete-id-123'], input='y\n')
+        result = self.runner.invoke(todo, ["delete", "delete-id-123"], input="y\n")
 
         # 結果検証
         assert result.exit_code == 0
         assert "Todo を削除しました" in result.output
         assert "(ID: delete-i" in result.output  # ID の短縮表示
 
-    @patch('moro.cli.todo.create_injector')
-    @patch('moro.cli.todo.ConfigRepository.create')
-    def test_delete_command_with_force(self, mock_config_create, mock_create_injector):
+    @patch("moro.cli.todo.create_injector")
+    @patch("moro.cli.todo.ConfigRepository.create")
+    def test_delete_command_with_force(
+        self, mock_config_create: Mock, mock_create_injector: Mock
+    ) -> None:
         """--force での削除テスト"""
         # モックの設定
         mock_config = Mock()
@@ -526,24 +550,26 @@ class TestTodoCliDelete:
         mock_usecase.execute.return_value = True  # 削除成功
 
         # コマンド実行
-        result = self.runner.invoke(todo, ['delete', 'delete-id-456', '--force'])
+        result = self.runner.invoke(todo, ["delete", "delete-id-456", "--force"])
 
         # 結果検証
         assert result.exit_code == 0
         assert "Todo を削除しました" in result.output
         # 確認プロンプトは表示されない
 
-    def test_delete_command_cancelled(self):
+    def test_delete_command_cancelled(self) -> None:
         """削除のキャンセルテスト"""
-        result = self.runner.invoke(todo, ['delete', 'cancel-id-789'], input='n\n')
+        result = self.runner.invoke(todo, ["delete", "cancel-id-789"], input="n\n")
 
         # 結果検証
         assert result.exit_code == 0
         assert "削除をキャンセルしました" in result.output
 
-    @patch('moro.cli.todo.create_injector')
-    @patch('moro.cli.todo.ConfigRepository.create')
-    def test_delete_command_not_found(self, mock_config_create, mock_create_injector):
+    @patch("moro.cli.todo.create_injector")
+    @patch("moro.cli.todo.ConfigRepository.create")
+    def test_delete_command_not_found(
+        self, mock_config_create: Mock, mock_create_injector: Mock
+    ) -> None:
         """存在しない Todo の削除テスト"""
         # モックの設定
         mock_config = Mock()
@@ -557,7 +583,7 @@ class TestTodoCliDelete:
         mock_usecase.execute.return_value = False  # 削除失敗（存在しない）
 
         # コマンド実行
-        result = self.runner.invoke(todo, ['delete', 'non-existent-id', '--force'])
+        result = self.runner.invoke(todo, ["delete", "non-existent-id", "--force"])
 
         # エラー結果の検証
         assert result.exit_code == 1
@@ -567,13 +593,15 @@ class TestTodoCliDelete:
 class TestTodoCliCleanup:
     """todo cleanup コマンドのテスト"""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """各テストメソッドの前に実行される共通セットアップ"""
         self.runner = CliRunner()
 
-    @patch('moro.cli.todo.create_injector')
-    @patch('moro.cli.todo.ConfigRepository.create')
-    def test_cleanup_command_success(self, mock_config_create, mock_create_injector):
+    @patch("moro.cli.todo.create_injector")
+    @patch("moro.cli.todo.ConfigRepository.create")
+    def test_cleanup_command_success(
+        self, mock_config_create: Mock, mock_create_injector: Mock
+    ) -> None:
         """Cleanup コマンド成功テスト"""
         # モックの設定
         mock_config = Mock()
@@ -587,15 +615,17 @@ class TestTodoCliCleanup:
         mock_usecase.delete_completed.return_value = 3  # 3件削除
 
         # コマンド実行（確認に 'y' で応答）
-        result = self.runner.invoke(todo, ['cleanup'], input='y\n')
+        result = self.runner.invoke(todo, ["cleanup"], input="y\n")
 
         # 結果検証
         assert result.exit_code == 0
         assert "3件の完了済み Todo を削除しました" in result.output
 
-    @patch('moro.cli.todo.create_injector')
-    @patch('moro.cli.todo.ConfigRepository.create')
-    def test_cleanup_command_no_todos(self, mock_config_create, mock_create_injector):
+    @patch("moro.cli.todo.create_injector")
+    @patch("moro.cli.todo.ConfigRepository.create")
+    def test_cleanup_command_no_todos(
+        self, mock_config_create: Mock, mock_create_injector: Mock
+    ) -> None:
         """削除対象がない場合のテスト"""
         # モックの設定
         mock_config = Mock()
@@ -609,15 +639,15 @@ class TestTodoCliCleanup:
         mock_usecase.delete_completed.return_value = 0  # 削除対象なし
 
         # コマンド実行
-        result = self.runner.invoke(todo, ['cleanup', '--force'])
+        result = self.runner.invoke(todo, ["cleanup", "--force"])
 
         # 結果検証
         assert result.exit_code == 0
         assert "削除対象の完了済み Todo はありませんでした" in result.output
 
-    def test_cleanup_command_cancelled(self):
+    def test_cleanup_command_cancelled(self) -> None:
         """Cleanup のキャンセルテスト"""
-        result = self.runner.invoke(todo, ['cleanup'], input='n\n')
+        result = self.runner.invoke(todo, ["cleanup"], input="n\n")
 
         # 結果検証
         assert result.exit_code == 0
@@ -627,13 +657,13 @@ class TestTodoCliCleanup:
 class TestTodoCliHelp:
     """todo ヘルプのテスト"""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """各テストメソッドの前に実行される共通セットアップ"""
         self.runner = CliRunner()
 
-    def test_todo_help(self):
+    def test_todo_help(self) -> None:
         """Todo --help のテスト"""
-        result = self.runner.invoke(todo, ['--help'])
+        result = self.runner.invoke(todo, ["--help"])
 
         assert result.exit_code == 0
         assert "Todo 管理コマンド" in result.output
@@ -644,9 +674,9 @@ class TestTodoCliHelp:
         assert "delete" in result.output
         assert "cleanup" in result.output
 
-    def test_todo_add_help(self):
+    def test_todo_add_help(self) -> None:
         """Todo add --help のテスト"""
-        result = self.runner.invoke(todo, ['add', '--help'])
+        result = self.runner.invoke(todo, ["add", "--help"])
 
         assert result.exit_code == 0
         assert "新しい Todo を追加する" in result.output
