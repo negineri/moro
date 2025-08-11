@@ -11,7 +11,6 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-from injector import Injector
 
 from moro.modules.epgstation.infrastructure import (
     CookieCacheManager,
@@ -34,6 +33,7 @@ class TestSessionProvider:
             mock_epgstation_config.chrome_data_dir = "test_chrome"
             mock_epgstation_config.cookie_cache_file = "test_cookies.json"
             mock_epgstation_config.cookie_cache_ttl = 3600
+            mock_epgstation_config.base_url = "https://test.example.com"
 
             provider = SeleniumEPGStationSessionProvider(
                 common_config=mock_common_config, epgstation_config=mock_epgstation_config
@@ -47,11 +47,18 @@ class TestSessionProvider:
             }
             cache_file.write_text(json.dumps(cache_data))
 
-            # テスト実行
-            cookies = provider.get_cookies()
+            # HTTP リクエストのモック
+            with patch("moro.modules.epgstation.infrastructure.httpx.get") as mock_get:
+                mock_response = Mock()
+                mock_response.raise_for_status.return_value = None
+                mock_response.json.return_value = {"version": "1.0.0"}
+                mock_get.return_value = mock_response
 
-            # アサーション
-            assert cookies == {"session": "test_session", "_oauth2_proxy": "test_oauth"}
+                # テスト実行
+                cookies = provider.get_cookies()
+
+                # アサーション
+                assert cookies == {"session": "test_session", "_oauth2_proxy": "test_oauth"}
 
     def test_should_perform_fresh_login_when_cache_expired(self) -> None:
         """キャッシュ期限切れ時の新規認証テスト（モック使用）"""
@@ -252,22 +259,29 @@ class TestSessionValidation:
             mock_epgstation_config.chrome_data_dir = "test_chrome"
             mock_epgstation_config.cookie_cache_file = "test_cookies.json"
             mock_epgstation_config.cookie_cache_ttl = 3600
+            mock_epgstation_config.base_url = "https://test.example.com"
 
             provider = SeleniumEPGStationSessionProvider(
                 common_config=mock_common_config, epgstation_config=mock_epgstation_config
             )
 
-        # 必要な Cookie を含む辞書
-        valid_cookies = {"session": "valid_session", "_oauth2_proxy": "valid_oauth"}
-        assert provider._is_session_valid(valid_cookies) is True
+            with patch("moro.modules.epgstation.infrastructure.httpx.get") as mock_get:
+                mock_response = Mock()
+                mock_response.raise_for_status.return_value = None
+                mock_response.json.return_value = {"version": "1.0.0"}
+                mock_get.return_value = mock_response
 
-        # session のみ
-        session_only = {"session": "valid_session"}
-        assert provider._is_session_valid(session_only) is True
+                # 必要な Cookie を含む辞書
+                valid_cookies = {"session": "valid_session", "_oauth2_proxy": "valid_oauth"}
+                assert provider._is_session_valid(valid_cookies) is True
 
-        # _oauth2_proxy のみ
-        oauth_only = {"_oauth2_proxy": "valid_oauth"}
-        assert provider._is_session_valid(oauth_only) is True
+                # session のみ
+                session_only = {"session": "valid_session"}
+                assert provider._is_session_valid(session_only) is True
+
+                # _oauth2_proxy のみ
+                oauth_only = {"_oauth2_proxy": "valid_oauth"}
+                assert provider._is_session_valid(oauth_only) is True
 
     def test_should_invalidate_session_without_required_cookies(self) -> None:
         """必要な Cookie が存在しない場合にセッションが無効と判定されることをテスト"""
@@ -280,27 +294,46 @@ class TestSessionValidation:
             mock_epgstation_config.chrome_data_dir = "test_chrome"
             mock_epgstation_config.cookie_cache_file = "test_cookies.json"
             mock_epgstation_config.cookie_cache_ttl = 3600
+            mock_epgstation_config.base_url = "https://test.example.com"
 
             provider = SeleniumEPGStationSessionProvider(
                 common_config=mock_common_config, epgstation_config=mock_epgstation_config
             )
 
-        # 空の Cookie 辞書
-        empty_cookies: dict[str, str] = {}
-        assert provider._is_session_valid(empty_cookies) is False
+            with patch("moro.modules.epgstation.infrastructure.httpx.get") as mock_get:
+                mock_get.side_effect = Exception("HTTP Error")
 
-        # 不要な Cookie のみ
-        irrelevant_cookies: dict[str, str] = {"some_other_cookie": "value"}
-        assert provider._is_session_valid(irrelevant_cookies) is False
+                # 空の Cookie 辞書
+                empty_cookies: dict[str, str] = {}
+                assert provider._is_session_valid(empty_cookies) is False
 
-    def test_should_handle_invalid_json_response(self, injector: Injector) -> None:
+                # 不要な Cookie のみ
+                irrelevant_cookies: dict[str, str] = {"some_other_cookie": "value"}
+                assert provider._is_session_valid(irrelevant_cookies) is False
+
+    def test_should_handle_invalid_json_response(self) -> None:
         """Version エンドポイントの呼び出しで無効な JSON が返された場合のハンドリング"""
-        provider = injector.get(SeleniumEPGStationSessionProvider)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            mock_common_config = Mock()
+            mock_common_config.user_cache_dir = temp_dir
 
-        with patch("moro.modules.epgstation.infrastructure.httpx.get") as mock_get:
-            mock_get.return_value.status_code = 200
-            mock_get.return_value.json.return_value = {"version": "1.0.0"}
-            assert provider._is_session_valid({}) is True
+            mock_epgstation_config = Mock()
+            mock_epgstation_config.enable_cookie_cache = True
+            mock_epgstation_config.chrome_data_dir = "test_chrome"
+            mock_epgstation_config.cookie_cache_file = "test_cookies.json"
+            mock_epgstation_config.cookie_cache_ttl = 3600
+            mock_epgstation_config.base_url = "https://test.example.com"
 
-            mock_get.return_value.json.side_effect = json.JSONDecodeError("Invalid JSON", "", 0)
-            assert provider._is_session_valid({}) is False
+            provider = SeleniumEPGStationSessionProvider(
+                common_config=mock_common_config, epgstation_config=mock_epgstation_config
+            )
+
+            with patch("moro.modules.epgstation.infrastructure.httpx.get") as mock_get:
+                mock_response = Mock()
+                mock_response.raise_for_status.return_value = None
+                mock_response.json.return_value = {"version": "1.0.0"}
+                mock_get.return_value = mock_response
+                assert provider._is_session_valid({}) is True
+
+                mock_response.json.side_effect = json.JSONDecodeError("Invalid JSON", "", 0)
+                assert provider._is_session_valid({}) is False
