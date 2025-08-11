@@ -11,6 +11,8 @@ from moro.modules.epgstation.domain import RecordingData, VideoFile, VideoFileTy
 
 def test_should_format_start_time_when_timestamp_provided() -> None:
     """開始時刻のフォーマット表示をテスト"""
+    from datetime import datetime
+
     # 2024-01-01 12:30 のタイムスタンプ (ms)
     timestamp_ms = 1704105000000
 
@@ -24,7 +26,9 @@ def test_should_format_start_time_when_timestamp_provided() -> None:
         is_protected=False,
     )
 
-    assert recording.formatted_start_time == "2024-01-01 19:30"
+    # システムのローカル時間帯で期待値を生成
+    expected_time = datetime.fromtimestamp(timestamp_ms / 1000).strftime("%Y-%m-%d %H:%M")
+    assert recording.formatted_start_time == expected_time
 
 
 def test_should_calculate_duration_in_minutes() -> None:
