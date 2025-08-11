@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 import click
 from table2ascii import PresetStyle, table2ascii
 
-from moro.cli._utils import click_verbose_option, config_logging
+from moro.cli._utils import AliasedGroup, click_verbose_option, config_logging
 from moro.config.settings import ConfigRepository
 from moro.dependencies.container import create_injector
 from moro.modules.epgstation.domain import RecordingData
@@ -139,7 +139,7 @@ class JsonFormatter(OutputFormatter):
         )
 
 
-@click.group()
+@click.group(cls=AliasedGroup)
 def epgstation() -> None:
     """EPGStation 録画管理コマンド"""
     pass
