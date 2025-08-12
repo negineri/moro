@@ -9,7 +9,7 @@ from table2ascii import PresetStyle, table2ascii
 from moro.cli._utils import AliasedGroup, click_verbose_option, config_logging
 from moro.config.settings import ConfigRepository
 from moro.dependencies.container import create_injector
-from moro.modules.epgstation.domain import RecordingData
+from moro.modules.epgstation.domain import RecordingData, RegexPatternError
 from moro.modules.epgstation.usecases import ListRecordingsUseCase
 
 
@@ -159,8 +159,23 @@ def epgstation() -> None:
     default="table",
     help="出力形式（デフォルト: table）",
 )
+@click.option(
+    "--title",
+    help="番組タイトルでフィルタリング",
+)
+@click.option(
+    "--regex/--no-regex",
+    default=False,
+    help="正規表現モード",
+)
 @click_verbose_option
-def list_recordings(limit: int, format_type: str, verbose: tuple[bool]) -> None:
+def list_recordings(
+    limit: int,
+    format_type: str,
+    verbose: tuple[bool],
+    title: str | None = None,
+    regex: bool = False,
+) -> None:
     """録画一覧を表示"""
     config = ConfigRepository.create()
     config_logging(config, verbose)
@@ -168,9 +183,9 @@ def list_recordings(limit: int, format_type: str, verbose: tuple[bool]) -> None:
         injector = create_injector(config)
         use_case = injector.get(ListRecordingsUseCase)
 
-        recordings = use_case.execute(limit=limit)
+        recordings = use_case.execute(limit=limit, title_filter=title, regex=regex)
 
-        formatter_map = {
+        formatter_map: dict[str, OutputFormatter] = {
             "table": TableFormatter(),
             "json": JsonFormatter(),
         }
@@ -179,6 +194,9 @@ def list_recordings(limit: int, format_type: str, verbose: tuple[bool]) -> None:
         result = formatter.format(recordings)
         click.echo(result)
 
+    except RegexPatternError as e:
+        # 正規表現エラーはユーザーフレンドリーなメッセージで表示
+        raise click.ClickException(f"正規表現エラー: {e}") from e
     except Exception as e:
         import logging
 

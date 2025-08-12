@@ -34,7 +34,9 @@ class TestListRecordingsUseCase:
         ]
         mock_repo.get_all.return_value = expected_recordings
 
-        use_case = ListRecordingsUseCase(mock_repo)
+        mock_filter_service = Mock()
+        mock_filter_service.apply_filter.return_value = expected_recordings
+        use_case = ListRecordingsUseCase(mock_repo, mock_filter_service)
 
         # When
         result = use_case.execute()
@@ -51,7 +53,10 @@ class TestListRecordingsUseCase:
         # Given
         mock_repo = Mock(spec=RecordingRepository)
         mock_repo.get_all.return_value = []
-        use_case = ListRecordingsUseCase(mock_repo)
+
+        mock_filter_service = Mock()
+        mock_filter_service.apply_filter.return_value = []
+        use_case = ListRecordingsUseCase(mock_repo, mock_filter_service)
 
         # When
         result = use_case.execute(limit=50)
@@ -66,7 +71,9 @@ class TestListRecordingsUseCase:
         mock_repo = Mock(spec=RecordingRepository)
         original_error = Exception("Connection timeout")
         mock_repo.get_all.side_effect = original_error
-        use_case = ListRecordingsUseCase(mock_repo)
+
+        mock_filter_service = Mock()
+        use_case = ListRecordingsUseCase(mock_repo, mock_filter_service)
 
         # When & Then
         with pytest.raises(Exception, match="Connection timeout") as exc_info:
@@ -80,7 +87,9 @@ class TestListRecordingsUseCase:
         mock_repo = Mock(spec=RecordingRepository)
         error_message = "Database connection failed"
         mock_repo.get_all.side_effect = Exception(error_message)
-        use_case = ListRecordingsUseCase(mock_repo)
+
+        mock_filter_service = Mock()
+        use_case = ListRecordingsUseCase(mock_repo, mock_filter_service)
 
         # When
         with (
@@ -128,7 +137,10 @@ class TestListRecordingsUseCase:
             ),
         ]
         mock_repo.get_all.return_value = expected_recordings
-        use_case = ListRecordingsUseCase(mock_repo)
+
+        mock_filter_service = Mock()
+        mock_filter_service.apply_filter.return_value = expected_recordings
+        use_case = ListRecordingsUseCase(mock_repo, mock_filter_service)
 
         # When
         result = use_case.execute()

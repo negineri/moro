@@ -44,7 +44,7 @@ class TestEPGStationCLI:
         assert result.exit_code == 0
         assert "録画ID" in result.output  # テーブルヘッダー
         assert "テスト番組" in result.output  # データ内容
-        mock_usecase.execute.assert_called_once_with(limit=50)
+        mock_usecase.execute.assert_called_once_with(limit=50, title_filter=None, regex=False)
 
     def test_should_use_default_limit_when_no_option_provided(self) -> None:
         """オプションなしの場合にデフォルトlimitが使用されることをテスト"""
@@ -73,7 +73,9 @@ class TestEPGStationCLI:
         assert result.exit_code == 0
         assert "録画ID" in result.output  # テーブルヘッダー
         assert "デフォルトテスト" in result.output  # データ内容
-        mock_usecase.execute.assert_called_once_with(limit=100)  # デフォルト値
+        mock_usecase.execute.assert_called_once_with(
+            limit=100, title_filter=None, regex=False
+        )  # デフォルト値
 
     def test_should_handle_usecase_exception_gracefully(self) -> None:
         """ユースケース実行時の例外の適切な処理テスト"""
@@ -131,7 +133,7 @@ class TestEPGStationCLI:
 
             assert result.exit_code == 0
             assert "録画ID" in result.output  # テーブルヘッダー
-            mock_usecase.execute.assert_called_with(limit=limit)
+            mock_usecase.execute.assert_called_with(limit=limit, title_filter=None, regex=False)
 
     def test_should_show_help_message_when_help_requested(self) -> None:
         """ヘルプメッセージの表示テスト"""
@@ -222,7 +224,7 @@ class TestEPGStationCLI:
 
         # パラメータが正確に渡されることを確認
         assert result.exit_code == 0
-        mock_usecase.execute.assert_called_once_with(limit=250)
+        mock_usecase.execute.assert_called_once_with(limit=250, title_filter=None, regex=False)
 
         # Injector から正しいクラスが取得されることを確認
         from moro.modules.epgstation.usecases import ListRecordingsUseCase

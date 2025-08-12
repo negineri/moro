@@ -6,7 +6,10 @@ from typing import TypeVar
 from injector import Binder, Injector, singleton
 
 from moro.config.settings import ConfigRepository
-from moro.modules.epgstation.domain import EPGStationSessionProvider, RecordingRepository
+from moro.modules.epgstation.domain import (
+    EPGStationSessionProvider,
+    RecordingRepository,
+)
 from moro.modules.epgstation.infrastructure import (
     EPGStationRecordingRepository,
     SeleniumEPGStationSessionProvider,

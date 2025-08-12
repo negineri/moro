@@ -289,7 +289,7 @@ class TestEPGStationCLIIntegration:
 
         # Then
         assert result.exit_code == 0
-        mock_use_case.execute.assert_called_once_with(limit=75)
+        mock_use_case.execute.assert_called_once_with(limit=75, title_filter=None, regex=False)
 
     def test_all_format_option_combinations(self) -> None:
         """全フォーマットオプションの組み合わせテスト"""
