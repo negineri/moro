@@ -78,6 +78,7 @@ ignore = [
     "RUF002", # 日本語コメントの際に邪魔
     "RUF003", # 日本語コメントの際に邪魔
     "D415",
+    "UP038",  # deprecated
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -113,12 +114,16 @@ post_commit_hooks = []
 [dependency-groups]
 dev = [
     "bump-my-version>=1.1.2",
+    "hypothesis>=6.138.0",
+    "import-linter>=2.3",
     "mypy>=1.15.0",
     "packaging>=24.0",
     "polyfactory>=2.18.0",
     "pytest>=8.3.5",
+    "pytest-benchmark>=5.1.0",
     "pytest-cov>=6.1.1",
     "pytest-mock>=3.14.1",
+    "pytest-xdist>=3.8.0",
     "ruff>=0.11.4",
     "tox>=4.25.0",
     "types-pyyaml>=6.0.12.20250402",
@@ -126,7 +131,17 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "-vv --tb=short -s"
-pythonpath = ["src"]
 testpaths = ["tests"]
+markers = [
+    "unit: Unit tests (module independent, fast)",
+    "integration: Integration tests (cross-module, medium)",
+    "e2e: End-to-end tests (full workflows, slow)",
+    "contract: Contract tests (module boundaries)",
+]
+addopts = "--strict-markers --strict-config -vv --tb=short -s"
+pythonpath = ["src"]
 python_files = ["test_*.py"]
+
+# 並列実行設定
+# pytest -m unit -n auto     # 単体テスト並列実行
+# pytest -m integration      # 統合テスト逐次実行
