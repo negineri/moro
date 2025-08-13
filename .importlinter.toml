@@ -1,0 +1,35 @@
+[tool.importlinter]
+root_packages = ["tests.unit.modules"]
+
+[[tool.importlinter.contracts]]
+name = "EPGStation module independence"
+type = "forbidden"
+source_modules = ["tests.unit.modules.epgstation"]
+forbidden_modules = [
+    "tests.unit.modules.fantia",
+    "tests.unit.modules.todo",
+    "moro.modules.fantia",
+    "moro.modules.todo"
+]
+
+[[tool.importlinter.contracts]]
+name = "Fantia module independence"
+type = "forbidden"
+source_modules = ["tests.unit.modules.fantia"]
+forbidden_modules = [
+    "tests.unit.modules.epgstation",
+    "tests.unit.modules.todo",
+    "moro.modules.epgstation",
+    "moro.modules.todo"
+]
+
+[[tool.importlinter.contracts]]
+name = "TODO module independence"
+type = "forbidden"
+source_modules = ["tests.unit.modules.todo"]
+forbidden_modules = [
+    "tests.unit.modules.epgstation",
+    "tests.unit.modules.fantia",
+    "moro.modules.epgstation",
+    "moro.modules.fantia"
+]
