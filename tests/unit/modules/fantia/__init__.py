@@ -1,0 +1,1 @@
+"""Fantia module unit tests"""

@@ -1,0 +1,82 @@
+# test_fantia.py 分析レポート
+
+## 概要
+- 総テスト数: 58
+- 総行数: 719
+- 保持対象: 32 テスト (244 行)
+- リファクタ対象: 4 テスト
+- 削除対象: 22 テスト
+
+## カテゴリ別分析
+- usecase: 26 テスト, 169 行 (保持:24, リファクタ:2, 削除:0)
+- infrastructure: 8 テスト, 143 行 (保持:0, リファクタ:0, 削除:8)
+- e2e: 5 テスト, 75 行 (保持:0, リファクタ:2, 削除:3)
+- integration: 11 テスト, 214 行 (保持:0, リファクタ:0, 削除:11)
+- domain: 8 テスト, 118 行 (保持:8, リファクタ:0, 削除:0)
+
+
+## 削除対象テスト詳細 (22 テスト)
+- test_http_client_configuration (12行, Mock:0, 価値:2, infrastructure)
+- test_cache_file_security_permissions (19行, Mock:0, 価値:2, infrastructure)
+- test_selenium_provider_webdriver_error_handling (10行, Mock:1, 価値:2, e2e)
+- test_check_login_success (15行, Mock:10, 価値:2, integration)
+- test_check_login_failure (14行, Mock:9, 価値:2, integration)
+- test_check_login_connection_error (14行, Mock:4, 価値:2, infrastructure)
+- test_fetch_post_data_login_failed (13行, Mock:9, 価値:2, integration)
+- test_session_validation_success (25行, Mock:22, 価値:1, infrastructure)
+- test_session_validation_failure (24行, Mock:21, 価値:1, infrastructure)
+- test_get_cookies_uses_cache_when_valid (23行, Mock:7, 価値:1, e2e)
+- test_get_cookies_performs_login_when_cache_invalid (23行, Mock:7, 価値:1, e2e)
+- test_selenium_provider_login_success_mock (21行, Mock:12, 価値:1, integration)
+- test_selenium_provider_no_session_cookie_found (19行, Mock:11, 価値:1, integration)
+- test_get_cookies_all_cookies_available (27行, Mock:11, 価値:1, integration)
+- test_get_cookies_partial_cookies_available (23行, Mock:11, 価値:1, integration)
+- test_get_cookies_no_relevant_cookies (20行, Mock:11, 価値:1, integration)
+- test_get_cookies_login_failure (17行, Mock:10, 価値:1, integration)
+- test_check_login_exception (15行, Mock:5, 価値:1, infrastructure)
+- test_check_login_timeout_exception (13行, Mock:4, 価値:1, infrastructure)
+- test_fetch_post_data_success (24行, Mock:19, 価値:1, integration)
+- test_fetch_post_data_http_error (21行, Mock:12, 価値:1, infrastructure)
+- test_fetch_post_data_json_decode_error (21行, Mock:14, 価値:1, integration)
+
+
+## リファクタ対象テスト詳細 (4 テスト)
+- test_save_and_load_cached_cookies (23行, Mock:0, 価値:3, usecase)
+- test_selenium_provider_get_session_id_returns_none_when_not_implemented (10行, Mock:0, 価値:3, e2e)
+- test_get_cookies_webdriver_error (9行, Mock:1, 価値:3, e2e)
+- test_extract_post_metadata_success (20行, Mock:0, 価値:3, usecase)
+
+
+## 保持対象テスト詳細 (32 テスト)
+- test_validate_post_type_blog_post (9行, Mock:0, 価値:5, domain)
+- test_validate_post_type_normal_post (10行, Mock:0, 価値:5, domain)
+- test_parse_post_thumbnail_success (12行, Mock:0, 価値:5, domain)
+- test_parse_post_thumbnail_no_thumb (12行, Mock:0, 価値:5, domain)
+- test_parse_post_contents_invisible (11行, Mock:0, 価値:5, domain)
+- test_parse_contents_unsupported_category (7行, Mock:0, 価値:5, domain)
+- test_parse_post_contents_empty (11行, Mock:0, 価値:5, domain)
+- test_get_session_id_is_abstract (6行, Mock:0, 価値:4, usecase)
+- test_concrete_provider_success (4行, Mock:0, 価値:4, usecase)
+- test_concrete_provider_returns_none (4行, Mock:0, 価値:4, usecase)
+- test_concrete_provider_empty_string (4行, Mock:0, 価値:4, usecase)
+- test_concrete_provider_exception_handling (4行, Mock:0, 価値:4, usecase)
+- test_multiple_calls (4行, Mock:0, 価値:4, usecase)
+- test_get_cookies_abstract_method (6行, Mock:0, 価値:4, usecase)
+- test_concrete_provider_get_cookies_success (4行, Mock:0, 価値:4, usecase)
+- test_concrete_provider_get_cookies_empty (4行, Mock:0, 価値:4, usecase)
+- test_session_id_provider_integration_success (4行, Mock:0, 価値:4, usecase)
+- test_session_id_provider_integration_none (4行, Mock:0, 価値:4, usecase)
+- test_session_id_provider_dynamic_update (4行, Mock:0, 価値:4, usecase)
+- test_multi_cookie_integration (4行, Mock:0, 価値:4, usecase)
+- test_partial_cookie_integration (4行, Mock:0, 価値:4, usecase)
+- test_cookie_deletion_on_provider_change (4行, Mock:0, 価値:4, usecase)
+- test_get_success_with_valid_session (4行, Mock:0, 価値:4, usecase)
+- test_get_auto_retry_on_401_provider_none (4行, Mock:0, 価値:4, usecase)
+- test_get_no_retry_on_403_error (4行, Mock:0, 価値:4, usecase)
+- test_fantia_client_with_multi_cookie_provider (4行, Mock:0, 価値:4, usecase)
+- test_fantia_client_with_empty_cookie_provider (4行, Mock:0, 価値:4, usecase)
+- test_cache_file_path_custom (6行, Mock:0, 価値:4, usecase)
+- test_session_validation_empty_cookies (9行, Mock:0, 価値:4, usecase)
+- test_cache_disabled (12行, Mock:0, 価値:4, usecase)
+- test_extract_metadata_missing_converted_at (15行, Mock:0, 価値:4, usecase)
+- test_parse_contents_valid_categories (46行, Mock:0, 価値:4, domain)

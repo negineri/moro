@@ -19,6 +19,7 @@ from .domain import Todo, TodoID, TodoRepository, validate_priority
 
 # リクエスト・レスポンスオブジェクト
 
+
 @dataclass
 class CreateTodoRequest:
     """Todo 作成リクエスト
@@ -33,6 +34,7 @@ class CreateTodoRequest:
     - プリミティブ型とドメイン型の橋渡し
     - デフォルト値による使いやすさの向上
     """
+
     title: str
     description: str = ""
     priority: str = "medium"
@@ -52,6 +54,7 @@ class UpdateTodoRequest:
     - Optional の活用による柔軟性
     - リクエストオブジェクトの設計原則
     """
+
     todo_id: str
     title: str | None = None
     description: str | None = None
@@ -72,6 +75,7 @@ class TodoResponse:
     - ドメインとプレゼンテーションの分離
     - データ変換の責務の所在
     """
+
     id: str
     title: str
     description: str
@@ -102,11 +106,12 @@ class TodoResponse:
             priority=todo.priority,
             is_completed=todo.is_completed,
             created_at=todo.created_at,
-            updated_at=todo.updated_at
+            updated_at=todo.updated_at,
         )
 
 
 # ユースケース実装
+
 
 class CreateTodoUseCase:
     """Todo 作成ユースケース
@@ -188,7 +193,7 @@ class CreateTodoUseCase:
             priority=priority,
             is_completed=False,
             created_at=now,
-            updated_at=now
+            updated_at=now,
         )
 
         # Step 4: 永続化
@@ -221,8 +226,9 @@ class ListTodosUseCase:
         """
         self._repository = repository
 
-    def execute(self, completed_only: bool | None = None,
-               sort_by_priority: bool = False) -> list[TodoResponse]:
+    def execute(
+        self, completed_only: bool | None = None, sort_by_priority: bool = False
+    ) -> list[TodoResponse]:
         """Todo 一覧を取得する
 
         Args:
@@ -306,8 +312,9 @@ class UpdateTodoUseCase:
         # Step 2: 更新データの準備（部分更新対応）
         title = request.title if request.title is not None else todo.title
         description = request.description if request.description is not None else todo.description
-        priority = (validate_priority(request.priority)
-                   if request.priority is not None else todo.priority)
+        priority = (
+            validate_priority(request.priority) if request.priority is not None else todo.priority
+        )
 
         # Step 3: バリデーション
         if not title.strip():
@@ -371,10 +378,7 @@ class ToggleTodoUseCase:
             raise ValueError(f"指定された Todo が見つかりません: {todo_id}")
 
         # Step 2: 状態切り替え（イミュータブルパターン）
-        updated_todo = (
-            todo.mark_incomplete() if todo.is_completed
-            else todo.mark_completed()
-        )
+        updated_todo = todo.mark_incomplete() if todo.is_completed else todo.mark_completed()
 
         # Step 3: 永続化
         saved_todo = self._repository.save(updated_todo)

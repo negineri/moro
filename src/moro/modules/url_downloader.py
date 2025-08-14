@@ -19,7 +19,7 @@ from urllib.parse import unquote
 
 import httpx
 
-from moro.modules.number_prefix import generate_number_prefix
+from moro.modules.common import generate_number_prefix
 
 logger = logging.getLogger(__name__)
 
