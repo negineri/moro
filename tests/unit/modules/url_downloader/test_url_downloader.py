@@ -1,5 +1,4 @@
 """URLダウンローダーモジュールの統合テスト（リファクタリング版）."""
-
 import os
 import zipfile
 from collections.abc import Callable

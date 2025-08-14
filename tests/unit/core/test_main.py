@@ -1,9 +1,15 @@
-"""Tests for the __main__.py module."""
+"""Tests for the __main__.py module.
+
+コア機能の単体テスト - メインモジュール
+"""
 
 import sys
 from unittest.mock import patch
 
+import pytest
 
+
+@pytest.mark.unit
 class TestMainModule:
     """Test cases for the __main__.py module.
 

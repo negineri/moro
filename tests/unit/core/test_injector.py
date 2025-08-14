@@ -1,4 +1,7 @@
-"""injectorのテスト"""
+"""injectorのテスト
+
+コア機能の単体テスト - 依存性注入システム
+"""
 
 from collections.abc import Callable
 from dataclasses import dataclass

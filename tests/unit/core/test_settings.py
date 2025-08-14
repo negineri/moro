@@ -1,4 +1,7 @@
-"""settings.pyのテスト"""
+"""settings.pyのテスト
+
+コア機能の単体テスト - 設定管理システム
+"""
 
 from typing import Any
 
@@ -9,6 +12,7 @@ from moro.config.settings import ConfigRepository
 from moro.modules.common import CommonConfig
 
 
+@pytest.mark.unit
 class TestConfigRepository:
     """ConfigRepositoryのテスト"""
 
