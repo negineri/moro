@@ -16,6 +16,7 @@ uv run pytest --cov=src --cov-report=term-missing
 # コード品質チェック
 uv run ruff check
 uv run mypy
+uv run lint-imports
 ```
 
 ## アーキテクチャ

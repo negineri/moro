@@ -145,6 +145,17 @@ addopts = "--strict-markers --strict-config -vv --tb=short -s"
 pythonpath = ["src"]
 python_files = ["test_*.py"]
 
+[tool.importlinter]
+root_packages = ["moro"]
+contract_types = [
+    "modular_monolith: scripts.importlinter_custom.ModularMonolithContract"
+]
+
+[[tool.importlinter.contracts]]
+name = "Modular Monolith Contract"
+type = "modular_monolith"
+root_package = "moro"
+
 # 並列実行設定
 # pytest -m unit -n auto     # 単体テスト並列実行
 # pytest -m integration      # 統合テスト逐次実行
