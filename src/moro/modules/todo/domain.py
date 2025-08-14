@@ -59,6 +59,7 @@ class TodoID:
     - 型安全性の向上手法
     - ドメイン概念の明示的表現
     """
+
     value: str
 
     @classmethod
@@ -99,6 +100,7 @@ class Todo:
     - 関数型プログラミング的アプローチ
     - dataclasses.replace() の活用
     """
+
     id: TodoID
     title: str
     description: str
@@ -125,11 +127,7 @@ class Todo:
         if self.is_completed:
             return self
 
-        return dataclasses.replace(
-            self,
-            is_completed=True,
-            updated_at=datetime.now()
-        )
+        return dataclasses.replace(self, is_completed=True, updated_at=datetime.now())
 
     def mark_incomplete(self) -> "Todo":
         """未完了状態にした新しいインスタンスを返す
@@ -148,11 +146,7 @@ class Todo:
         if not self.is_completed:
             return self
 
-        return dataclasses.replace(
-            self,
-            is_completed=False,
-            updated_at=datetime.now()
-        )
+        return dataclasses.replace(self, is_completed=False, updated_at=datetime.now())
 
     def update_content(self, title: str, description: str, priority: Priority) -> "Todo":
         """内容を更新した新しいインスタンスを返す
@@ -179,17 +173,11 @@ class Todo:
         description = description.strip()
 
         # 変更の有無をチェック（効率性のため）
-        if (self.title == title and
-            self.description == description and
-            self.priority == priority):
+        if self.title == title and self.description == description and self.priority == priority:
             return self
 
         return dataclasses.replace(
-            self,
-            title=title,
-            description=description,
-            priority=priority,
-            updated_at=datetime.now()
+            self, title=title, description=description, priority=priority, updated_at=datetime.now()
         )
 
     @property

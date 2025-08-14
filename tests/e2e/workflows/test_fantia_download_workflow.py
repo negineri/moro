@@ -149,7 +149,9 @@ class TestFantiaConfigWorkflow:
         # FantiaClientを作成
         client = FantiaClient(config=config.fantia, session_provider=mock_session_provider)
         file_downloader = FantiaFileDownloader(client)
-        save_usecase = FantiaSavePostUseCase(config=config, file_downloader=file_downloader)
+        save_usecase = FantiaSavePostUseCase(
+            common_config=config.common, file_downloader=file_downloader
+        )
 
         # テストデータの作成
         test_post = FantiaPostDataFactory.build()

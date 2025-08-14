@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from moro.config.settings import ConfigRepository
+from moro.modules.common import CommonConfig
 from moro.modules.fantia.domain import (
     FantiaFanclub,
     FantiaFanclubRepository,
@@ -124,12 +124,10 @@ class TestFantiaSavePostUseCase:
     """FantiaSavePostUseCase 単体テスト"""
 
     @pytest.fixture
-    def mock_config(self) -> Mock:
-        """ConfigRepositoryのMock"""
-        config = Mock(spec=ConfigRepository)
-        # commonオブジェクトのMock設定
-        config.common = Mock()
-        config.common.working_dir = "/tmp/test_working"  # noqa: S108  # TODO: Replace with tmp_path fixture
+    def mock_common_config(self) -> Mock:
+        """CommonConfigのMock"""
+        config = Mock(spec=CommonConfig)
+        config.working_dir = "/tmp/test_working"  # noqa: S108  # TODO: Replace with tmp_path fixture
         return config
 
     @pytest.fixture
@@ -138,9 +136,13 @@ class TestFantiaSavePostUseCase:
         return Mock(spec=FantiaFileDownloader)
 
     @pytest.fixture
-    def usecase(self, mock_config: Mock, mock_file_downloader: Mock) -> FantiaSavePostUseCase:
+    def usecase(
+        self, mock_common_config: Mock, mock_file_downloader: Mock
+    ) -> FantiaSavePostUseCase:
         """テスト対象UseCase"""
-        return FantiaSavePostUseCase(config=mock_config, file_downloader=mock_file_downloader)
+        return FantiaSavePostUseCase(
+            common_config=mock_common_config, file_downloader=mock_file_downloader
+        )
 
     @patch("os.makedirs")
     @patch("os.path.exists")

@@ -27,8 +27,20 @@ class TestTracklistExtractor:
     def test_save_to_csv(self, tmp_path: Path) -> None:
         """Test save_to_csv functionality."""
         tracks = [
-            Track(disc=1, track=1, title="Song 1", duration="3:45", track_url="http://example.com/song1.flac"),
-            Track(disc=1, track=2, title="Song 2", duration="4:12", track_url="http://example.com/song2.flac"),
+            Track(
+                disc=1,
+                track=1,
+                title="Song 1",
+                duration="3:45",
+                track_url="http://example.com/song1.flac",
+            ),
+            Track(
+                disc=1,
+                track=2,
+                title="Song 2",
+                duration="4:12",
+                track_url="http://example.com/song2.flac",
+            ),
         ]
 
         output_file = tmp_path / "test_tracklist.csv"
@@ -77,9 +89,7 @@ class TestTracklistCommand:
         assert "エラーが発生しました" in result.output
 
     @patch("moro.cli.tracklist.extract_tracklist_from_url_to_csv")
-    def test_tracklist_command_default_output(
-        self, mock_extract: Mock, tmp_path: Path
-    ) -> None:
+    def test_tracklist_command_default_output(self, mock_extract: Mock, tmp_path: Path) -> None:
         """Test tracklist command with default output filename."""
         # Mock successful extraction
         mock_extract.return_value = 0
