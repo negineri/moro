@@ -18,6 +18,7 @@ class FantiaURLFactory(ModelFactory[FantiaURL]):
     """FantiaURL用Factory"""
 
     __model__ = FantiaURL
+    __check_model__ = True
 
     @classmethod
     def url(cls) -> str:
@@ -32,6 +33,7 @@ class FantiaPhotoGalleryFactory(ModelFactory[FantiaPhotoGallery]):
     """FantiaPhotoGallery用Factory"""
 
     __model__ = FantiaPhotoGallery
+    __check_model__ = True
 
     @classmethod
     def id(cls) -> str:
@@ -54,6 +56,7 @@ class FantiaFileFactory(ModelFactory[FantiaFile]):
     """FantiaFile用Factory"""
 
     __model__ = FantiaFile
+    __check_model__ = True
 
     @classmethod
     def id(cls) -> str:
@@ -80,6 +83,7 @@ class FantiaTextFactory(ModelFactory[FantiaText]):
     """FantiaText用Factory"""
 
     __model__ = FantiaText
+    __check_model__ = True
 
     @classmethod
     def id(cls) -> str:
@@ -98,6 +102,7 @@ class FantiaProductFactory(ModelFactory[FantiaProduct]):
     """FantiaProduct用Factory"""
 
     __model__ = FantiaProduct
+    __check_model__ = True
 
     @classmethod
     def id(cls) -> str:
@@ -124,6 +129,7 @@ class FantiaPostDataFactory(ModelFactory[FantiaPostData]):
     """FantiaPostData用Factory"""
 
     __model__ = FantiaPostData
+    __check_model__ = True
 
     @classmethod
     def id(cls) -> str:

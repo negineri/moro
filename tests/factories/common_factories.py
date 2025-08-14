@@ -9,6 +9,7 @@ class CommonConfigFactory(ModelFactory[CommonConfig]):
     """CommonConfig用Factory - テスト用設定値を生成"""
 
     __model__ = CommonConfig
+    __check_model__ = True
 
     @classmethod
     def user_data_dir(cls) -> str:

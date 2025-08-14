@@ -9,6 +9,7 @@ class VideoFileFactory(ModelFactory[VideoFile]):
     """VideoFile用Factory"""
 
     __model__ = VideoFile
+    __check_model__ = True
 
     @classmethod
     def id(cls) -> int:
@@ -35,6 +36,7 @@ class RecordingDataFactory(ModelFactory[RecordingData]):
     """RecordingData用Factory"""
 
     __model__ = RecordingData
+    __check_model__ = True
 
     @classmethod
     def id(cls) -> int:

@@ -135,6 +135,7 @@ class FantiaURLFactory(ModelFactory[FantiaURL]):
     """Factory for FantiaURL."""
 
     __model__ = FantiaURL
+    __check_model__ = True
 
     url = "https://example.com/image.jpg"
     ext = ".jpg"
@@ -145,6 +146,7 @@ class FantiaFileFactory(ModelFactory[FantiaFile]):
     """Factory for FantiaFile."""
 
     __model__ = FantiaFile
+    __check_model__ = True
 
     id = "file_001"
     title = "Test File"
@@ -158,6 +160,7 @@ class FantiaPhotoGalleryFactory(ModelFactory[FantiaPhotoGallery]):
     """Factory for FantiaPhotoGallery."""
 
     __model__ = FantiaPhotoGallery
+    __check_model__ = True
 
     id = "gallery_001"
     title = "Test Gallery"
@@ -175,6 +178,7 @@ class FantiaTextFactory(ModelFactory[FantiaText]):
     """Factory for FantiaText."""
 
     __model__ = FantiaText
+    __check_model__ = True
 
     id = "text_001"
     title = "Test Text"
@@ -186,6 +190,7 @@ class FantiaProductFactory(ModelFactory[FantiaProduct]):
     """Factory for FantiaProduct."""
 
     __model__ = FantiaProduct
+    __check_model__ = True
 
     id = "product_001"
     title = "Test Product"
@@ -199,6 +204,7 @@ class FantiaPostDataFactory(ModelFactory[FantiaPostData]):
     """Factory for FantiaPostData."""
 
     __model__ = FantiaPostData
+    __check_model__ = True
 
     id = DEFAULT_POST_ID
     title = "Test Post Title"
@@ -220,6 +226,7 @@ class FantiaConfigFactory(ModelFactory[FantiaConfig]):
     """Factory for FantiaConfig."""
 
     __model__ = FantiaConfig
+    __check_model__ = True
 
     session_id = "test_session_id"
     directory = "test/downloads"
