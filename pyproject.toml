@@ -137,6 +137,9 @@ markers = [
     "integration: Integration tests (cross-module, medium)",
     "e2e: End-to-end tests (full workflows, slow)",
     "contract: Contract tests (module boundaries)",
+    "slow: Slow tests (long-running, e.g., network calls)",
+    "skip_in_ci: Skip in CI",
+    "manual_test_only: Manual tests (requires user interaction)",
 ]
 addopts = "--strict-markers --strict-config -vv --tb=short -s"
 pythonpath = ["src"]

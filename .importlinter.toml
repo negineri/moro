@@ -1,3 +1,5 @@
+# Import Linter設定 - モジュール独立性監視
+
 [tool.importlinter]
 root_packages = ["tests.unit.modules"]
 
@@ -32,4 +34,12 @@ forbidden_modules = [
     "tests.unit.modules.fantia",
     "moro.modules.epgstation",
     "moro.modules.fantia"
+]
+
+[[tool.importlinter.contracts]]
+name = "Common module only dependency"
+type = "layers"
+layers = [
+    "moro.modules.common",
+    "tests.unit.modules.epgstation | tests.unit.modules.fantia | tests.unit.modules.todo"
 ]
