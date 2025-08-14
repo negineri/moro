@@ -1,10 +1,12 @@
 """Tests for CLI progress bar functionality."""
 
+import pytest
 from pytest import CaptureFixture
 
 from moro.cli._progress import PostsProgressManager
 
 
+@pytest.mark.unit
 class TestPostsProgressManager:
     """PostsProgressManagerのテストクラス."""
 

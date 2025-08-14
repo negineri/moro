@@ -1,12 +1,18 @@
-"""EPGStation フォーマッターテスト"""
+"""EPGStation フォーマッターテスト
+
+CLI層の単体テスト - モジュール横断境界テスト
+"""
 
 import json
 from unittest.mock import Mock, PropertyMock
+
+import pytest
 
 from moro.cli.epgstation import JsonFormatter, TableFormatter
 from moro.modules.epgstation.domain import RecordingData, VideoFile, VideoFileType
 
 
+@pytest.mark.unit
 class TestTableFormatter:
     """TableFormatter のテストクラス"""
 
@@ -169,6 +175,7 @@ class TestTableFormatter:
         assert "ENCODED" in result
 
 
+@pytest.mark.unit
 class TestJsonFormatter:
     """JsonFormatter のテストクラス"""
 
