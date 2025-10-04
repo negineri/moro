@@ -294,7 +294,7 @@ async def _save_cv_pages(cv_pages: list[ElementHandle], path: Path) -> None:
             cv,
         )
         path.mkdir(parents=True, exist_ok=True)
-        with open(path / f"{i + 1:03}.png", "wb") as f:
+        with open(file_path, "wb") as f:
             img_bin = b64decode(image_base64.split(",")[1])
             f.write(img_bin)
 
