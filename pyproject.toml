@@ -14,10 +14,13 @@ dependencies = [
     "pathvalidate>=3.3.1",
     "pixivpy>=3.7.0",
     "platformdirs>=4.3.7",
+    "playwright>=1.55.0",
     "pre-commit>=4.2.0",
     "pydantic>=2.11.3",
     "python-dotenv>=1.1.0",
+    "rich>=14.1.0",
     "selenium>=4.34.0",
+    "sqlalchemy>=2.0.43",
     "table2ascii>=0.4.0",
     "tomli>=2.2.1",
     "tomli-w>=1.2.0",
@@ -108,7 +111,7 @@ message = "Bump version: {current_version} → {new_version}"
 moveable_tags = []
 commit_args = "--no-verify"
 setup_hooks = []
-pre_commit_hooks = []
+pre_commit_hooks = ["uv sync", "git add uv.lock"]
 post_commit_hooks = []
 
 [dependency-groups]
@@ -120,6 +123,7 @@ dev = [
     "packaging>=24.0",
     "polyfactory>=2.18.0",
     "pytest>=8.3.5",
+    "pytest-asyncio>=1.2.0",
     "pytest-benchmark>=5.1.0",
     "pytest-cov>=6.1.1",
     "pytest-mock>=3.14.1",
@@ -148,7 +152,7 @@ python_files = ["test_*.py"]
 [tool.importlinter]
 root_packages = ["moro"]
 contract_types = [
-    "modular_monolith: scripts.importlinter_custom.ModularMonolithContract"
+    "modular_monolith: scripts.importlinter_custom.ModularMonolithContract",
 ]
 
 [[tool.importlinter.contracts]]

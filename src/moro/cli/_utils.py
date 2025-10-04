@@ -50,7 +50,7 @@ click_verbose_option = click.option(
 )
 
 
-def config_logging(config: ConfigRepository, verbose: tuple[bool] | None = None) -> None:
+def config_logging(config: ConfigRepository, verbose: tuple[bool, ...] | None = None) -> None:
     """Configure logging based on verbosity."""
     # Create logs directory if file handler is configured
     if "file" in config.common.logging_config.get("handlers", {}):

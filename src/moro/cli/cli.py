@@ -6,6 +6,7 @@ import click
 
 from moro.cli._utils import AliasedGroup, config_logging
 from moro.cli.config import config
+from moro.cli.ebook import ebook
 from moro.cli.epgstation import epgstation
 from moro.cli.example import example
 from moro.cli.fantia import fantia
@@ -36,3 +37,4 @@ cli.add_command(download)
 cli.add_command(pixiv)
 cli.add_command(fantia)
 cli.add_command(todo)
+cli.add_command(ebook)
