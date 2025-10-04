@@ -14,6 +14,7 @@ from polyfactory.pytest_plugin import register_fixture
 
 from moro.config.settings import ConfigRepository
 from moro.dependencies.container import create_injector
+from moro.modules.common import CommonConfig
 from moro.modules.fantia.config import FantiaConfig
 from moro.modules.fantia.domain import (
     FantiaFile,
@@ -135,6 +136,7 @@ class FantiaURLFactory(ModelFactory[FantiaURL]):
     """Factory for FantiaURL."""
 
     __model__ = FantiaURL
+    __check_model__ = True
 
     url = "https://example.com/image.jpg"
     ext = ".jpg"
@@ -145,6 +147,7 @@ class FantiaFileFactory(ModelFactory[FantiaFile]):
     """Factory for FantiaFile."""
 
     __model__ = FantiaFile
+    __check_model__ = True
 
     id = "file_001"
     title = "Test File"
@@ -158,6 +161,7 @@ class FantiaPhotoGalleryFactory(ModelFactory[FantiaPhotoGallery]):
     """Factory for FantiaPhotoGallery."""
 
     __model__ = FantiaPhotoGallery
+    __check_model__ = True
 
     id = "gallery_001"
     title = "Test Gallery"
@@ -175,6 +179,7 @@ class FantiaTextFactory(ModelFactory[FantiaText]):
     """Factory for FantiaText."""
 
     __model__ = FantiaText
+    __check_model__ = True
 
     id = "text_001"
     title = "Test Text"
@@ -186,6 +191,7 @@ class FantiaProductFactory(ModelFactory[FantiaProduct]):
     """Factory for FantiaProduct."""
 
     __model__ = FantiaProduct
+    __check_model__ = True
 
     id = "product_001"
     title = "Test Product"
@@ -199,6 +205,7 @@ class FantiaPostDataFactory(ModelFactory[FantiaPostData]):
     """Factory for FantiaPostData."""
 
     __model__ = FantiaPostData
+    __check_model__ = True
 
     id = DEFAULT_POST_ID
     title = "Test Post Title"
@@ -220,6 +227,7 @@ class FantiaConfigFactory(ModelFactory[FantiaConfig]):
     """Factory for FantiaConfig."""
 
     __model__ = FantiaConfig
+    __check_model__ = True
 
     session_id = "test_session_id"
     directory = "test/downloads"
@@ -273,3 +281,13 @@ def injector(tmp_path_factory: pytest.TempPathFactory) -> Injector:
     config.common.working_dir = str(tmp_path_factory.mktemp("working"))
 
     return create_injector(config)
+
+
+@pytest.fixture(scope="function")
+def common_config(tmp_path_factory: pytest.TempPathFactory) -> CommonConfig:
+    """CommonConfigのテスト用fixture."""
+    return CommonConfig(
+        user_data_dir=str(tmp_path_factory.mktemp("user_data")),
+        user_cache_dir=str(tmp_path_factory.mktemp("user_cache")),
+        working_dir=str(tmp_path_factory.mktemp("working")),
+    )

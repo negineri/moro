@@ -9,7 +9,7 @@ from datetime import datetime as dt
 from injector import inject
 from pathvalidate import sanitize_filename
 
-from moro.config.settings import ConfigRepository
+from moro.modules.common import CommonConfig
 from moro.modules.fantia.domain import (
     FantiaFanclub,
     FantiaFanclubRepository,
@@ -48,7 +48,7 @@ class FantiaGetPostsUseCase:
 class FantiaSavePostUseCase:
     """Use case for saving a Fantia post with all its content."""
 
-    config: ConfigRepository
+    common_config: CommonConfig
     file_downloader: FantiaFileDownloader
 
     def execute(self, post_data: FantiaPostData) -> None:
@@ -87,7 +87,7 @@ class FantiaSavePostUseCase:
         dir_name = sanitize_filename(f"{post_data.id}_{post_data.title}_{formatted_date}")
 
         post_dir = os.path.join(
-            self.config.common.working_dir, "downloads", "fantia", post_data.creator_id, dir_name
+            self.common_config.working_dir, "downloads", "fantia", post_data.creator_id, dir_name
         )
 
         os.makedirs(post_dir, exist_ok=True)

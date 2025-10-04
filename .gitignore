@@ -1,5 +1,7 @@
 temp/
+output/
 mise.local.toml
+.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
