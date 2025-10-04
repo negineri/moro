@@ -13,7 +13,6 @@ from moro.modules.todo.domain import Todo, TodoID, validate_priority
 
 
 @pytest.mark.unit
-@pytest.mark.unit
 class TestPriority:
     """Priority 型とバリデーション関数のテスト"""
 
@@ -42,7 +41,6 @@ class TestPriority:
             validate_priority("urgent")
 
 
-@pytest.mark.unit
 @pytest.mark.unit
 class TestTodoID:
     """TodoID 値オブジェクトのテスト"""
