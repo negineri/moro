@@ -5,11 +5,15 @@ version = 1
 [common.logging_config.formatters.default]
 format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
+[common.logging_config.formatters.rich]
+format = "%(message)s"
+
 [common.logging_config.handlers.console]
-class = "logging.StreamHandler"
-formatter = "default"
+# class = "logging.StreamHandler"
+class = "rich.logging.RichHandler"
+formatter = "rich"
 level = "WARNING"
-stream = "ext://sys.stdout"
+# stream = "ext://sys.stdout"
 
 [common.logging_config.handlers.file]
 class = "logging.handlers.RotatingFileHandler"
