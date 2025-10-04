@@ -4,12 +4,89 @@
 Mock使用による外部依存分離
 """
 
-from unittest.mock import Mock, patch
+from collections.abc import Generator
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
+from moro.modules.common import CommonConfig
+from moro.modules.epgstation.config import EPGStationConfig
 from moro.modules.epgstation.domain import RecordingData
-from moro.modules.epgstation.infrastructure import EPGStationRecordingRepository
+from moro.modules.epgstation.infrastructure import (
+    CookieCacheManager,
+    EPGStationRecordingRepository,
+    SeleniumEPGStationSessionProvider,
+)
+
+
+@pytest.fixture
+def cookie_cache_manager(tmp_path: Path) -> CookieCacheManager:
+    """CookieCacheManager テスト用インスタンス"""
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    return CookieCacheManager(str(tmp_path / "cookie_cache.json"), ttl_seconds=3600)
+
+
+@pytest.fixture
+def selenium_session_provider(
+    common_config: CommonConfig,
+) -> Generator[SeleniumEPGStationSessionProvider, None, None]:
+    """SeleniumEPGStationSessionProvider テスト用インスタンス"""
+    with (
+        patch("moro.modules.epgstation.infrastructure.webdriver") as mock_webdriver,
+        patch("moro.modules.epgstation.infrastructure.httpx") as mock_httpx,
+        patch("moro.modules.epgstation.infrastructure.input"),
+    ):
+        # Selenium WebDriver Mock設定
+        mock_driver = MagicMock()
+        mock_driver.get_cookies.return_value = [{"name": "session_id", "value": "test123"}]
+        mock_webdriver.Chrome.return_value.__enter__.return_value = mock_driver
+        mock_webdriver.Chrome.return_value.__exit__.return_value = None
+
+        # httpx Mock設定
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_client = MagicMock()
+        mock_client.post.return_value = mock_response
+        mock_httpx.Client.return_value = mock_client
+
+        epgstation_config = EPGStationConfig(base_url="http://example.com")
+
+        yield SeleniumEPGStationSessionProvider(common_config, epgstation_config)
+
+
+@pytest.mark.unit
+class TestCookieCacheManager:
+    """CookieCacheManager 単体テスト"""
+
+    def test_get_cookies_returns_empty_dict_when_no_cookies_set(
+        self,
+        cookie_cache_manager: CookieCacheManager,
+    ) -> None:
+        """クッキー未設定時のNone返却テスト"""
+        result = cookie_cache_manager.load_cookies()
+        assert result is None
+
+    def test_save_and_load_cookies(self, cookie_cache_manager: CookieCacheManager) -> None:
+        """クッキーの保存と読み込みテスト"""
+        cookie_cache_manager.save_cookies({"session_id": "test123"})
+        result = cookie_cache_manager.load_cookies()
+        assert result == {"session_id": "test123"}
+        with open(cookie_cache_manager.cache_file_path) as f:
+            data = f.read()
+            assert '{"session_id": "test123"}' in data
+
+
+@pytest.mark.unit
+class TestSeleniumEPGStationSessionProvider:
+    """SeleniumEPGStationSessionProvider 単体テスト"""
+
+    def test_get_cookies_returns_valid_cookies(
+        self, selenium_session_provider: SeleniumEPGStationSessionProvider
+    ) -> None:
+        """クッキー取得テスト"""
+        result = selenium_session_provider.get_cookies()
+        assert result == {"session_id": "test123"}
 
 
 @pytest.mark.unit
@@ -26,8 +103,6 @@ class TestEPGStationRecordingRepository:
     @pytest.fixture
     def mock_config(self) -> Mock:
         """Config Mock"""
-        from moro.modules.epgstation.config import EPGStationConfig
-
         config = Mock(spec=EPGStationConfig)
         config.base_url = "http://localhost:8888"
         config.max_recordings = 1000

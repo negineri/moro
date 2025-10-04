@@ -28,3 +28,4 @@ repos:
         # any arguments from `lint-imports` can be added here
         # args: ["--verbose"]
         language: system
+        entry: uv run lint-imports

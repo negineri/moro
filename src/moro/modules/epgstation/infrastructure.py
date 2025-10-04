@@ -9,11 +9,17 @@ from urllib.parse import urljoin
 
 import httpx
 from injector import inject
+from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
 from moro.modules.common import CommonConfig
 from moro.modules.epgstation.config import EPGStationConfig
-from moro.modules.epgstation.domain import EPGStationSessionProvider, RecordingData
+from moro.modules.epgstation.domain import (
+    EPGStationSessionProvider,
+    RecordingData,
+    VideoFile,
+    VideoFileType,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -151,8 +157,6 @@ class SeleniumEPGStationSessionProvider:
         Raises:
             RuntimeError: 認証に失敗した場合
         """
-        from selenium import webdriver
-
         options = self._create_chrome_options()
 
         try:
@@ -175,10 +179,8 @@ class SeleniumEPGStationSessionProvider:
             logger.error(f"Selenium authentication failed: {e}")
             raise RuntimeError(f"認証に失敗しました: {e}") from e
 
-    def _create_chrome_options(self) -> "Options":
+    def _create_chrome_options(self) -> Options:
         """Chrome WebDriver オプションを作成"""
-        from selenium.webdriver.chrome.options import Options
-
         options = Options()
         options.add_argument(f"--user-data-dir={self._chrome_user_data}")
         options.add_argument("--no-first-run")
@@ -243,10 +245,6 @@ class EPGStationRecordingRepository:
         Raises:
             RuntimeError: API アクセスに失敗した場合
         """
-        import httpx
-
-        from moro.modules.epgstation.domain import RecordingData, VideoFile, VideoFileType
-
         cookies = self._session_provider.get_cookies()
 
         params = {

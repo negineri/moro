@@ -14,6 +14,7 @@ from polyfactory.pytest_plugin import register_fixture
 
 from moro.config.settings import ConfigRepository
 from moro.dependencies.container import create_injector
+from moro.modules.common import CommonConfig
 from moro.modules.fantia.config import FantiaConfig
 from moro.modules.fantia.domain import (
     FantiaFile,
@@ -280,3 +281,13 @@ def injector(tmp_path_factory: pytest.TempPathFactory) -> Injector:
     config.common.working_dir = str(tmp_path_factory.mktemp("working"))
 
     return create_injector(config)
+
+
+@pytest.fixture(scope="function")
+def common_config(tmp_path_factory: pytest.TempPathFactory) -> CommonConfig:
+    """CommonConfigのテスト用fixture."""
+    return CommonConfig(
+        user_data_dir=str(tmp_path_factory.mktemp("user_data")),
+        user_cache_dir=str(tmp_path_factory.mktemp("user_cache")),
+        working_dir=str(tmp_path_factory.mktemp("working")),
+    )
