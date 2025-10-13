@@ -15,5 +15,21 @@
             "name": "selenium",
             "depth": 2
         },
+        {
+            "name": "polyfactory",
+            "depth": 3
+        },
+        {
+            "name": "playwright",
+            "depth": 2
+        },
+        {
+            "name": "sqlalchemy",
+            "depth": 2
+        },
+        {
+            "name": "rich",
+            "depth": 2
+        }
     ]
 }

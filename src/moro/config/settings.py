@@ -12,11 +12,13 @@ from pathlib import Path
 from typing import Any
 
 import tomli
-from injector import Binder
+from injector import Binder, singleton
 from pydantic import BaseModel, Field
 from pydantic.v1.utils import deep_update
+from sqlalchemy import create_engine
 
-from moro.modules.common import CommonConfig
+from moro.modules.bigcomics.config import BigComicsConfig
+from moro.modules.common import CommonConfig, CommonDBEngine
 from moro.modules.epgstation.config import EPGStationConfig
 from moro.modules.fantia.config import FantiaConfig
 from moro.modules.todo.config import TodoConfig
@@ -45,6 +47,9 @@ class ConfigRepository(BaseModel):
     )  # EPGStation configuration
     fantia: FantiaConfig = Field(default_factory=FantiaConfig)  # Fantia-specific configuration
     todo: TodoConfig = Field(default_factory=TodoConfig)  # Todo module configuration
+    bigcomics: BigComicsConfig = Field(
+        default_factory=BigComicsConfig
+    )  # BigComics module configuration
 
     @classmethod
     def create(
@@ -75,6 +80,14 @@ class ConfigRepository(BaseModel):
             binder.bind(EPGStationConfig, to=self.epgstation)
             binder.bind(FantiaConfig, to=self.fantia)
             binder.bind(TodoConfig, to=self.todo)
+            binder.bind(BigComicsConfig, to=self.bigcomics)
+
+            # Common module bindings
+            binder.bind(
+                CommonDBEngine,
+                to=create_engine(f"sqlite:///{self.common.user_data_dir}/common.db"),
+                scope=singleton,
+            )
 
         return configure
 

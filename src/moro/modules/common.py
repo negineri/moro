@@ -4,8 +4,11 @@ from typing import Any
 
 from platformdirs import PlatformDirs
 from pydantic import BaseModel, Field
+from sqlalchemy import Engine
 
 pfd = PlatformDirs(appname="moro", appauthor="negineri")
+
+CommonDBEngine = Engine
 
 
 def generate_number_prefix(total_count: int, current_index: int) -> str:
