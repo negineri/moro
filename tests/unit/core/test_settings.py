@@ -9,7 +9,7 @@ import pytest
 from injector import Injector
 
 from moro.config.settings import ConfigRepository
-from moro.modules.common import CommonConfig
+from moro.modules.common.config import CommonConfig
 
 
 @pytest.mark.unit

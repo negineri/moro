@@ -1,8 +1,10 @@
 """Dependency injection container configuration."""
 
-from collections.abc import Callable
-from typing import TypeVar
+from collections.abc import Awaitable, Callable, Coroutine
+from logging import getLogger
+from typing import Any, Concatenate, ParamSpec, TypeVar
 
+from aiohttp import ClientSession
 from injector import Binder, Injector, singleton
 
 from moro.config.settings import ConfigRepository
@@ -25,6 +27,10 @@ from moro.modules.todo.domain import TodoRepository
 from moro.modules.todo.infrastructure import InMemoryTodoRepository
 
 _T = TypeVar("_T")
+Param = ParamSpec("Param")
+RetType = TypeVar("RetType")
+
+_logger = getLogger(__name__)
 
 
 def configure(binder: Binder) -> None:
@@ -40,6 +46,8 @@ def configure(binder: Binder) -> None:
 
     # Todo module bindings
     binder.bind(TodoRepository, to=InMemoryTodoRepository, scope=singleton)  # type: ignore[type-abstract]
+
+    binder.bind(ClientSession, to=ClientSession(), scope=singleton)
 
 
 def create_injector(config: ConfigRepository) -> Injector:
@@ -59,3 +67,28 @@ def create_binder(cls: type[_T], ins: _T) -> Callable[[Binder], None]:
         binder.bind(cls, to=ins)
 
     return binder
+
+
+def async_injector(
+    config: ConfigRepository,
+) -> Callable[
+    [Callable[Concatenate[Injector, Param], Awaitable[RetType]]],
+    Callable[Param, Coroutine[Any, Any, RetType]],
+]:
+    """Create a binder function that binds a class to an instance for async usage."""
+
+    def decorator(
+        func: Callable[Concatenate[Injector, Param], Awaitable[RetType]],
+    ) -> Callable[Param, Coroutine[Any, Any, RetType]]:
+        async def wrapper(*args: Param.args, **kwargs: Param.kwargs) -> RetType:
+            injector = create_injector(config)
+
+            result = await func(injector, *args, **kwargs)
+
+            _logger.debug("Closing aiohttp ClientSession")
+            await injector.get(ClientSession).close()
+            return result
+
+        return wrapper
+
+    return decorator

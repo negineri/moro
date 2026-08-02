@@ -12,7 +12,7 @@ from injector import inject
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
-from moro.modules.common import CommonConfig
+from moro.modules.common.config import CommonConfig
 from moro.modules.epgstation.config import EPGStationConfig
 from moro.modules.epgstation.domain import (
     EPGStationSessionProvider,

@@ -19,7 +19,7 @@ from injector import inject
 from pathvalidate import sanitize_filename
 from selenium import webdriver
 
-from moro.modules.common import CommonConfig
+from moro.modules.common.config import CommonConfig
 from moro.modules.fantia import FantiaClient
 from moro.modules.fantia.config import (
     DOMAIN,

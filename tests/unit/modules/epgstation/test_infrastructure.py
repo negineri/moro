@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from moro.modules.common import CommonConfig
+from moro.modules.common.config import CommonConfig
 from moro.modules.epgstation.config import EPGStationConfig
 from moro.modules.epgstation.domain import RecordingData
 from moro.modules.epgstation.infrastructure import (

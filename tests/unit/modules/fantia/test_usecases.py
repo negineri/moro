@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from moro.modules.common import CommonConfig
+from moro.modules.common.config import CommonConfig
 from moro.modules.fantia.domain import (
     FantiaFanclub,
     FantiaFanclubRepository,

@@ -1,11 +1,12 @@
 [project]
 name = "moro"
-version = "0.7.0"
+version = "0.8.0"
 description = "Add your description here"
 readme = "README.md"
 authors = [{ name = "negineri", email = "negineri@sfc.wide.ad.jp" }]
 requires-python = ">=3.10"
 dependencies = [
+    "aiohttp[speedups]>=3.14.3",
     "beautifulsoup4>=4.12.0",
     "click>=8.1.8",
     "fantiadl>=2.0.4",
@@ -81,7 +82,6 @@ ignore = [
     "RUF002", # 日本語コメントの際に邪魔
     "RUF003", # 日本語コメントの際に邪魔
     "D415",
-    "UP038",  # deprecated
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -93,7 +93,7 @@ ignore = [
 convention = "google"
 
 [tool.bumpversion]
-current_version = "0.7.0"
+current_version = "0.8.0"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 search = "{current_version}"

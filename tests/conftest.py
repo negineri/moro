@@ -14,7 +14,7 @@ from polyfactory.pytest_plugin import register_fixture
 
 from moro.config.settings import ConfigRepository
 from moro.dependencies.container import create_injector
-from moro.modules.common import CommonConfig
+from moro.modules.common.config import CommonConfig
 from moro.modules.fantia.config import FantiaConfig
 from moro.modules.fantia.domain import (
     FantiaFile,

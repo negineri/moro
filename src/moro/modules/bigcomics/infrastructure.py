@@ -22,7 +22,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 from moro.modules.bigcomics.config import BigComicsConfig
-from moro.modules.common import CommonConfig, CommonDBEngine
+from moro.modules.common.config import CommonConfig
+from moro.modules.common.domain import CommonDBEngine
 
 logger = getLogger(__name__)
 

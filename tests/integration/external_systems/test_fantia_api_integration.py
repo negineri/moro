@@ -20,7 +20,7 @@ class TestFantiaAPIIntegration:
     @pytest.fixture
     def config(self, tmp_path: Path) -> ConfigRepository:
         """テスト用ConfigRepository"""
-        from moro.modules.common import CommonConfig
+        from moro.modules.common.config import CommonConfig
         from moro.modules.fantia.config import FantiaConfig
 
         config = ConfigRepository()
@@ -94,7 +94,7 @@ class TestFantiaConfigIntegration:
         """設定とFileDownloaderの統合テスト"""
         # Given
         from moro.config.settings import ConfigRepository
-        from moro.modules.common import CommonConfig
+        from moro.modules.common.config import CommonConfig
         from moro.modules.fantia.config import FantiaConfig
         from moro.modules.fantia.infrastructure import FantiaFileDownloader
 
