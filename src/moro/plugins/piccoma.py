@@ -1,6 +1,7 @@
 """Piccoma plugin."""
 
 import re
+import shutil
 from logging import getLogger
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -129,7 +130,7 @@ class PWScript(PWScriptBase):
                 if file.is_file() and file.suffix == ".png":
                     dest_file = output_dir / file.name
                     dest_file.parent.mkdir(parents=True, exist_ok=True)
-                    file.rename(dest_file)
+                    shutil.move(str(file), str(dest_file))
         _logger.info(f"Dumped {page_count} pages to {output_dir}")
 
     async def _get_episodes(self, page: Page) -> list[Episode]:
