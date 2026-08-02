@@ -130,7 +130,10 @@ class PWScript(PWScriptBase):
                 if file.is_file() and file.suffix == ".png":
                     dest_file = output_dir / file.name
                     dest_file.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.move(str(file), str(dest_file))
+                    try:
+                        shutil.move(str(file), str(dest_file))
+                    except OSError:
+                        shutil.copy(str(file), str(dest_file))
         _logger.info(f"Dumped {page_count} pages to {output_dir}")
 
     async def _get_episodes(self, page: Page) -> list[Episode]:
