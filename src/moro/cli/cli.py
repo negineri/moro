@@ -9,8 +9,8 @@ from moro.cli.config import config
 from moro.cli.ebook import ebook
 from moro.cli.epgstation import epgstation
 from moro.cli.example import example
+from moro.cli.experimental import experimental
 from moro.cli.fantia import fantia
-from moro.cli.pixiv import pixiv
 from moro.cli.todo import todo
 from moro.cli.tracklist import tracklist
 from moro.cli.url_downloader import download
@@ -34,7 +34,7 @@ cli.add_command(epgstation)
 cli.add_command(example)
 cli.add_command(tracklist)
 cli.add_command(download)
-cli.add_command(pixiv)
 cli.add_command(fantia)
 cli.add_command(todo)
 cli.add_command(ebook)
+cli.add_command(experimental)

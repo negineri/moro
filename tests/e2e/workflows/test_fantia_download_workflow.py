@@ -98,7 +98,7 @@ class TestFantiaConfigWorkflow:
         """設定初期化ワークフローテスト"""
         # Given
         from moro.config.settings import ConfigRepository
-        from moro.modules.common import CommonConfig
+        from moro.modules.common.config import CommonConfig
         from moro.modules.fantia.config import FantiaConfig
 
         # When - 設定の初期化ワークフロー
@@ -122,7 +122,7 @@ class TestFantiaConfigWorkflow:
         from tests.factories.fantia_factories import FantiaPostDataFactory
 
         from moro.config.settings import ConfigRepository
-        from moro.modules.common import CommonConfig
+        from moro.modules.common.config import CommonConfig
         from moro.modules.fantia.config import FantiaConfig
         from moro.modules.fantia.infrastructure import FantiaFileDownloader
         from moro.modules.fantia.usecases import FantiaSavePostUseCase

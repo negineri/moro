@@ -2,7 +2,7 @@
 
 from polyfactory.factories.pydantic_factory import ModelFactory
 
-from moro.modules.common import CommonConfig
+from moro.modules.common.config import CommonConfig
 
 
 class CommonConfigFactory(ModelFactory[CommonConfig]):

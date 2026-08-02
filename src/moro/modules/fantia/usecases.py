@@ -9,7 +9,7 @@ from datetime import datetime as dt
 from injector import inject
 from pathvalidate import sanitize_filename
 
-from moro.modules.common import CommonConfig
+from moro.modules.common.config import CommonConfig
 from moro.modules.fantia.domain import (
     FantiaFanclub,
     FantiaFanclubRepository,

@@ -18,7 +18,8 @@ from pydantic.v1.utils import deep_update
 from sqlalchemy import create_engine
 
 from moro.modules.bigcomics.config import BigComicsConfig
-from moro.modules.common import CommonConfig, CommonDBEngine
+from moro.modules.common.config import CommonConfig
+from moro.modules.common.domain import CommonDBEngine
 from moro.modules.epgstation.config import EPGStationConfig
 from moro.modules.fantia.config import FantiaConfig
 from moro.modules.todo.config import TodoConfig
