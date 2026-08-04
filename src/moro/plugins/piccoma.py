@@ -1,11 +1,11 @@
 """Piccoma plugin."""
 
 import re
-import shutil
 from logging import getLogger
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 from playwright.async_api import BrowserContext, Page
 from pydantic import BaseModel
@@ -20,6 +20,14 @@ class Episode(BaseModel):
 
     title: str
     episode_id: str
+    readable: bool
+
+
+class Volume(BaseModel):
+    """volume infomation for Piccoma."""
+
+    title: str
+    volume_id: str
     readable: bool
 
 
@@ -49,30 +57,60 @@ class PWScript(PWScriptBase):
             A string result from the script execution.
         """
         result = ""
-        product_id = re.search(r"product/(\d+)", data["url"])
-        if not product_id:
+        product_id_match = re.search(r"product/(\d+)", data["url"])
+        product_id = product_id_match.group(1) if product_id_match is not None else None
+        if type(product_id) is not str:
             raise ValueError("Invalid Piccoma URL: Product ID not found.")
+        try:
+            etype: str = parse_qs(urlparse(data["url"]).query).get("etype", [])[0]
+        except IndexError:
+            etype = ""
         page = await context.new_page()
-        await page.goto(f"https://piccoma.com/web/product/{product_id.group(1)}/episodes?etype=E")
-        await page.wait_for_selector("css=div.PCM-productSaleList_episode")
-        if data.get("login", False) and await page.locator("css=.PCM-headerLogin").count() > 0:
-            raise AuthError("Login failed. Please check your credentials.")
-        product_title = await page.locator("css=span.PCM-headTitle_name").inner_text()
-        episodes = await self._get_episodes(page)
-        for episode_number, episode in enumerate(episodes, start=1):
-            if episode.readable:
+        if etype == "volume" or etype == "V":
+            await page.goto(f"https://piccoma.com/web/product/{product_id}/episodes?etype=V")
+            await page.wait_for_selector("css=div.PCM-productSaleList_volume")
+            if data.get("login", False) and await page.locator("css=.PCM-headerLogin").count() > 0:
+                raise AuthError("Login failed. Please check your credentials.")
+            product_title = await page.locator("css=span.PCM-headTitle_name").inner_text()
+
+            volumes = await self._get_volumes(page)
+            for volume in volumes:
                 output_dir = (
                     Path(data["output_dir"])
                     / "piccoma"
-                    / f"{product_id.group(1)}_{product_title}"
-                    / f"{episode_number:03}_{episode.episode_id}_{episode.title}"
+                    / f"{product_id}_{product_title}"
+                    / "volumes"
+                    / f"{volume.volume_id}_{volume.title}"
                 )
                 if output_dir.exists() and any(output_dir.iterdir()):
-                    _logger.info(f"Skipping episode {episode.episode_id} as it already exists.")
-                    result += f"Episode {episode_number}: {episode.title} (skipped)\n"
+                    _logger.info(f"Skipping volume {volume.volume_id} as it already exists.")
+                    result += f"Volume {volume.volume_id}: {volume.title} (skipped)\n"
                     continue
-                await self._dump_episode(page, output_dir, product_id.group(1), episode.episode_id)
-                result += f"Episode {episode_number}: {episode.title}\n"
+                await self._dump_episode(page, output_dir, product_id, volume.volume_id)
+                result += f"Volume {volume.volume_id}: {volume.title}\n"
+        else:
+            await page.goto(f"https://piccoma.com/web/product/{product_id}/episodes?etype=E")
+            await page.wait_for_selector("css=div.PCM-productSaleList_episode")
+            if data.get("login", False) and await page.locator("css=.PCM-headerLogin").count() > 0:
+                raise AuthError("Login failed. Please check your credentials.")
+            product_title = await page.locator("css=span.PCM-headTitle_name").inner_text()
+
+            episodes = await self._get_episodes(page)
+            for episode_number, episode in enumerate(episodes, start=1):
+                if episode.readable:
+                    output_dir = (
+                        Path(data["output_dir"])
+                        / "piccoma"
+                        / f"{product_id}_{product_title}"
+                        / "episodes"
+                        / f"{episode_number:03}_{episode.episode_id}_{episode.title}"
+                    )
+                    if output_dir.exists() and any(output_dir.iterdir()):
+                        _logger.info(f"Skipping episode {episode.episode_id} as it already exists.")
+                        result += f"Episode {episode_number}: {episode.title} (skipped)\n"
+                        continue
+                    await self._dump_episode(page, output_dir, product_id, episode.episode_id)
+                    result += f"Episode {episode_number}: {episode.title}\n"
 
         return result
 
@@ -123,14 +161,21 @@ class PWScript(PWScriptBase):
                 # screenshot
                 await canvas.screenshot(path=Path(dname) / file_name)
                 # left arrow key click
-                await page.keyboard.press("ArrowLeft")
-                await page.wait_for_timeout(200)
+                while True:
+                    await page.keyboard.press("ArrowLeft")
+                    await page.wait_for_timeout(100)
+                    page_id = await page.locator(
+                        "css=div.PCM-viewer2_pageWrapper.current"
+                    ).get_attribute("id")
+                    if page_id in ["last", f"p{i + 1}"]:
+                        break
+
             # copy screenshots to output_dir
             for file in Path(dname).iterdir():
                 if file.is_file() and file.suffix == ".png":
                     dest_file = output_dir / file.name
                     dest_file.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy(str(file), str(dest_file))
+                    file.rename(dest_file)
         _logger.info(f"Dumped {page_count} pages to {output_dir}")
 
     async def _get_episodes(self, page: Page) -> list[Episode]:
@@ -143,7 +188,7 @@ class PWScript(PWScriptBase):
         Returns:
             A list of Episode objects containing episode information.
         """
-        episodes = []
+        episodes: list[Episode] = []
         for episode_element in await page.locator("css=li.unrDOSPmj0tjYEm").all():
             title = episode_element.locator("css=h2")
             url = episode_element.locator("css=a")
@@ -161,6 +206,19 @@ class PWScript(PWScriptBase):
                         Episode(title=title_text, episode_id=episode_id, readable=readable)
                     )
         return episodes
+
+    async def _get_volumes(self, page: Page) -> list[Volume]:
+        volumes: list[Volume] = []
+        for volume_ele in await page.locator("css=li.xekAP2y1K5Ks7Rp").all():
+            title = await volume_ele.locator("css=h2").inner_text()
+            url = volume_ele.locator("css=a").first
+            volume_id = await url.get_attribute("data-episode_id")
+            status = await url.get_attribute("class")
+            readable = "PCM-prdVol_trialBtn" not in (status or "")
+            if volume_id is None:
+                raise ValueError("Cannot get volume_id")
+            volumes.append(Volume(title=title, volume_id=volume_id, readable=readable))
+        return volumes
 
     async def login(self, context: BrowserContext, data: dict[str, Any]) -> None:
         """

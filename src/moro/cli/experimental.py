@@ -2,6 +2,7 @@
 
 import asyncio
 from logging import getLogger
+from pathlib import Path
 
 import click
 from injector import Injector
@@ -10,7 +11,12 @@ from moro.cli._utils import AliasedGroup, click_verbose_option, config_logging
 from moro.config.settings import ConfigRepository
 from moro.dependencies.container import async_injector
 from moro.modules.common.infrastructure import PlaywrightProvider
-from moro.modules.common.utils import PWScriptLoadError, iter_pwscript_classes
+from moro.modules.common.utils import (
+    PackError,
+    PWScriptLoadError,
+    iter_pwscript_classes,
+    pack_directory,
+)
 
 _logger = getLogger(__name__)
 
@@ -23,7 +29,7 @@ def experimental() -> None:
 
 @experimental.command()
 @click_verbose_option
-def list_scripts(verbose: tuple[bool]) -> None:
+def list_scripts(verbose: tuple[bool, ...]) -> None:
     """List all available Playwright scripts."""
     config = ConfigRepository.create()
     config_logging(config, verbose)
@@ -49,7 +55,7 @@ def list_scripts(verbose: tuple[bool]) -> None:
     "--no-headless", is_flag=True, default=False, help="Run Playwright in non-headless mode"
 )
 @click.option("--login", is_flag=True, default=False, help="Login to the site before downloading")
-def download(url: str, verbose: tuple[bool], no_headless: bool, login: bool) -> None:
+def download(url: str, verbose: tuple[bool, ...], no_headless: bool, login: bool) -> None:
     """Download content from a URL."""
     config = ConfigRepository.create()
     config.common.playwright_headless = not no_headless
@@ -79,3 +85,21 @@ def download(url: str, verbose: tuple[bool], no_headless: bool, login: bool) -> 
         click.echo(res)
 
     asyncio.run(run_async())
+
+
+@experimental.command()
+@click_verbose_option
+@click.argument("target", type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.argument("output", type=click.Path(dir_okay=False, path_type=Path))
+def pack(target: Path, output: Path, verbose: tuple[bool, ...]) -> None:
+    """Pack all files under TARGET into OUTPUT (.zip or .pdf)."""
+    config = ConfigRepository.create()
+    config_logging(config, verbose)
+
+    try:
+        count = pack_directory(target, output)
+    except PackError as e:
+        _logger.debug("Failed to pack files", exc_info=True)
+        raise click.ClickException(str(e)) from e
+
+    click.echo(f"Packed {count} files into {output}")

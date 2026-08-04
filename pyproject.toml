@@ -1,6 +1,6 @@
 [project]
 name = "moro"
-version = "0.8.3"
+version = "0.8.5"
 description = "Add your description here"
 readme = "README.md"
 authors = [{ name = "negineri", email = "negineri@sfc.wide.ad.jp" }]
@@ -13,6 +13,7 @@ dependencies = [
     "httpx>=0.25.0",
     "injector>=0.22.0",
     "pathvalidate>=3.3.1",
+    "pillow>=12.3.0",
     "pixivpy>=3.7.0",
     "platformdirs>=4.3.7",
     "playwright>=1.55.0",
@@ -93,7 +94,7 @@ ignore = [
 convention = "google"
 
 [tool.bumpversion]
-current_version = "0.8.3"
+current_version = "0.8.5"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 search = "{current_version}"
