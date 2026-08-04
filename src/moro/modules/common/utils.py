@@ -291,19 +291,16 @@ def _pack_zip(files: list[Path], target: Path, output: Path) -> int:
     Returns:
         int: The number of archived files.
     """
-    images = [file for file in files if file.suffix.lower() in PDF_IMAGE_SUFFIXES]
-    for file in files:
-        if file not in images:
-            _logger.warning("Skipping non image file: %s", file.relative_to(target))
-    if not images:
-        raise PackError(f"No image file found under '{target}'")
-    width = len(str(len(images)))
+    width = len(str(len(files)))
     with ZipFile(output, "w", ZIP_DEFLATED) as archive:
-        for index, file in enumerate(images, start=1):
+        for index, file in enumerate(files, start=1):
+            if file.name.startswith("."):
+                _logger.warning("Skipping hidden file: %s", file.relative_to(target))
+                continue
             arcname = f"{index:0{width}d}{file.suffix}"
             _logger.debug("Adding %s as %s", file.relative_to(target), arcname)
             archive.write(file, arcname=arcname)
-    return len(images)
+    return len(files)
 
 
 def _pack_pdf(files: list[Path], target: Path, output: Path) -> int:
