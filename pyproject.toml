@@ -13,6 +13,7 @@ dependencies = [
     "httpx>=0.25.0",
     "injector>=0.22.0",
     "pathvalidate>=3.3.1",
+    "pillow>=12.3.0",
     "pixivpy>=3.7.0",
     "platformdirs>=4.3.7",
     "playwright>=1.55.0",
