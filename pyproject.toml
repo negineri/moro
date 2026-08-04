@@ -1,6 +1,6 @@
 [project]
 name = "moro"
-version = "0.8.4"
+version = "0.8.5"
 description = "Add your description here"
 readme = "README.md"
 authors = [{ name = "negineri", email = "negineri@sfc.wide.ad.jp" }]
@@ -94,7 +94,7 @@ ignore = [
 convention = "google"
 
 [tool.bumpversion]
-current_version = "0.8.4"
+current_version = "0.8.5"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 search = "{current_version}"
